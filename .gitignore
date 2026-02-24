@@ -39,3 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# MedGemma model weights — these are 2-3 GB each and MUST NOT be committed.
+# Download them separately using scripts/download-models.sh
+# See SETUP.md for instructions.
+models/*.gguf
+models/*.bin
