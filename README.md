@@ -61,7 +61,7 @@ Everything runs **fully on-device** — no server, no cloud API, no internet req
 
 ## Why MedGemma?
 
-A generic vision or language model cannot reliably interpret medical abbreviations (SGPT → ALT), handle unit variations (mg/dL vs mmol/L), or calibrate urgency language correctly. MedGemma's medical pre-training handles all of this natively, with a dramatically lower hallucination rate on clinical content compared to general-purpose models.
+A generic vision or language model cannot reliably interpret medical abbreviations (SGPT → ALT), handle unit variations (mg/dL vs mmol/L), or calibrate urgency language correctly. MedGemma's medical pre-training handles all of this natively.
 
 See the [Technical Write-up](#technical-write-up) section for full details.
 
