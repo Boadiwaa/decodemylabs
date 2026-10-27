@@ -45,3 +45,14 @@ yarn-error.*
 # See SETUP.md for instructions.
 models/*.gguf
 models/*.bin
+models/*.litertlm
+
+# Native module build output
+modules/*/android/build/
+modules/*/android/.gradle/
+
+# Local debugging artifacts and editor settings
+.tmp_*
+.Rhistory
+.idea/
+.vscode/
