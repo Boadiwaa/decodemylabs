@@ -48,6 +48,36 @@ export async function encryptDemo(plainText) {
   return digest;
 }
 
+// Salted, iterated SHA-256 for on-device credentials. expo-crypto has no
+// bcrypt/PBKDF2, so this raises the bar without claiming production strength.
+// Each round is a native call; 1000 rounds took ~6 s per login on an emulator.
+const PASSWORD_HASH_ITERATIONS = 100;
+
+async function derivePasswordHash(password, salt, iterations) {
+  let digest = `${salt}:${password}`;
+  for (let i = 0; i < iterations; i++) {
+    digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${digest}`);
+  }
+  return digest;
+}
+
+/** Returns `{ passwordHash, passwordSalt, passwordIterations }` to store instead of the password. */
+export async function hashPassword(password) {
+  const passwordSalt = Crypto.randomUUID();
+  const passwordIterations = PASSWORD_HASH_ITERATIONS;
+  const passwordHash = await derivePasswordHash(password, passwordSalt, passwordIterations);
+  return { passwordHash, passwordSalt, passwordIterations };
+}
+
+/** Checks a password against a stored user, including legacy plain-text records. */
+export async function verifyPassword(password, storedUser) {
+  if (storedUser?.passwordHash && storedUser?.passwordSalt) {
+    const iterations = storedUser.passwordIterations || PASSWORD_HASH_ITERATIONS;
+    return (await derivePasswordHash(password, storedUser.passwordSalt, iterations)) === storedUser.passwordHash;
+  }
+  return typeof storedUser?.password === 'string' && storedUser.password === password;
+}
+
 export function getLanguageLabel(lang) {
   switch (lang) {
     case 'en': return 'English';

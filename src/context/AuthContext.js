@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile } from '../services/PatientStorage';
+import { hashPassword, verifyPassword } from '../utils/helpers';
 
 const AuthContext = createContext();
 
@@ -13,6 +14,12 @@ const USERS_STORAGE_KEY = '@talkinglabs_users';
  * In production, this would come from a real database.
  */
 const DEMO_PATIENT_ID = 1;
+
+/** Strip credential fields before a user record is kept as the session. */
+function toSessionUser(storedUser) {
+  const { password, passwordHash, passwordSalt, passwordIterations, ...sessionUser } = storedUser;
+  return sessionUser;
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -79,12 +86,14 @@ export function AuthProvider({ children }) {
         return { success: false, message: 'An account with this email already exists.' };
       }
 
+      const credentials = await hashPassword(userData.password);
+
       const newUser = {
         id: Date.now().toString(),
         role: 'patient',
         fullName: userData.fullName,
         email: userData.email.toLowerCase(),
-        password: userData.password, // Demo only — hash in production
+        ...credentials,
         phone: userData.phone || null,
         patientId: DEMO_PATIENT_ID,
         onboardingComplete: false,
@@ -94,9 +103,7 @@ export function AuthProvider({ children }) {
       existingUsers.push(newUser);
       await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(existingUsers));
 
-      const sessionUser = { ...newUser };
-      delete sessionUser.password;
-      await _persistSession(sessionUser);
+      await _persistSession(toSessionUser(newUser));
 
       return { success: true };
     } catch (e) {
@@ -113,17 +120,19 @@ export function AuthProvider({ children }) {
       const existingRaw = await AsyncStorage.getItem(USERS_STORAGE_KEY);
       const existingUsers = existingRaw ? JSON.parse(existingRaw) : [];
 
-      const found = existingUsers.find(
-        u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-      );
+      const found = existingUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
 
-      if (!found) {
+      if (!found || !(await verifyPassword(password, found))) {
         return { success: false, message: 'Invalid email or password.' };
       }
 
-      const sessionUser = { ...found };
-      delete sessionUser.password;
-      await _persistSession(sessionUser);
+      // Upgrade accounts created before passwords were hashed.
+      if (typeof found.password === 'string') {
+        const credentials = await hashPassword(password);
+        await _updateUserInList(found.id, { ...credentials, password: undefined });
+      }
+
+      await _persistSession(toSessionUser(found));
 
       return { success: true };
     } catch (e) {
