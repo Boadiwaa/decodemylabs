@@ -215,7 +215,7 @@ export function buildTrendFromResults(allResults, testName, maxPoints = 6) {
   };
 }
 
-// --------------- Aggregate for MedGemma prompt ---------------
+// --------------- Aggregate for model prompt ---------------
 
 /**
  * Build a full patient context object for prompt injection.

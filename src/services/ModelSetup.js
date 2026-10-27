@@ -12,7 +12,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 
-const MODEL_FILENAME = 'medgemma-1.5-4b-it-Q5_K_M.gguf';
+const MODEL_FILENAME = 'gemma-4-E2B-it-Q4_0.gguf';
 
 /** Get the target path where the model should live */
 export function getModelTargetPath() {

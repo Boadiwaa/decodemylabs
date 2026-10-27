@@ -11,9 +11,9 @@
 #
 # Requirements:
 #   - curl or wget
-#   - ~4 GB of free disk space
-#   - Hugging Face account with access to google/medgemma-4b-it-gguf
-#     (request access at https://huggingface.co/google/medgemma-4b-it-gguf)
+#   - ~6 GB of free disk space for all files
+#   - No Hugging Face token: the Gemma 4 repos below are public.
+#     HF_TOKEN is sent if set (e.g. to avoid rate limits).
 #
 # After downloading, the model will be at models/ which is gitignored.
 # =============================================================================
@@ -27,21 +27,19 @@ mkdir -p "$MODELS_DIR"
 # Model file definitions
 # ---------------------------------------------------------------------------
 
-# Primary Android runtime model: Gemma-4 LiteRT-LM package.
-# If LITERT_MODEL_URL is unset, this script will skip download and print
-# a manual-placement reminder (useful when model is distributed internally).
+# Android runtime (LiteRT-LM): Gemma 4 E2B package (~2.6 GB).
+# Set LITERT_MODEL_URL="" to skip it.
 LITERT_MODEL_FILE="gemma-4-E2B-it.litertlm"
-LITERT_MODEL_URL="${LITERT_MODEL_URL:-}"
+LITERT_MODEL_URL="${LITERT_MODEL_URL-https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm}"
 
-# Primary model: MedGemma 1.5B instruction-tuned, Q3_K_M quantization (~1.1 GB)
-# This remains as fallback for llama.rn runtime.
-MODEL_FILE="medgemma-1.5-4b-it-Q3_K_M.gguf"
-MODEL_URL="https://huggingface.co/google/medgemma-4b-it-gguf/resolve/main/medgemma-1.5-4b-it-Q3_K_M.gguf"
+# iOS runtime (llama.rn): Gemma 4 E2B GGUF, Q4_0 quantization (~2.8 GB).
+MODEL_FILE="gemma-4-E2B-it-Q4_0.gguf"
+MODEL_URL="https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_0.gguf"
 
-# Multimodal projection weights (~550 MB)
-# Required for vision (image → lab extraction) mode.
-MMPROJ_FILE="mmproj-F16.gguf"
-MMPROJ_URL="https://huggingface.co/google/medgemma-4b-it-gguf/resolve/main/mmproj-F16.gguf"
+# Vision projector for the GGUF model (~0.56 GB).
+# Required for vision (image → lab extraction) mode on llama.rn.
+MMPROJ_FILE="mmproj-gemma-4-E2B-it-Q8_0.gguf"
+MMPROJ_URL="https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-E2B-it-Q8_0.gguf"
 
 # ---------------------------------------------------------------------------
 # Download helper
@@ -63,14 +61,13 @@ download_file() {
   echo "   Destination: $dest"
   echo ""
 
+  local auth=()
   if command -v curl &> /dev/null; then
-    curl -L --progress-bar \
-      -H "Authorization: Bearer ${HF_TOKEN:-}" \
-      "$url" -o "$dest"
+    [ -n "${HF_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $HF_TOKEN")
+    curl -fL --progress-bar ${auth[@]+"${auth[@]}"} "$url" -o "$dest"
   elif command -v wget &> /dev/null; then
-    wget --progress=bar:force \
-      --header="Authorization: Bearer ${HF_TOKEN:-}" \
-      "$url" -O "$dest"
+    [ -n "${HF_TOKEN:-}" ] && auth=(--header="Authorization: Bearer $HF_TOKEN")
+    wget --progress=bar:force ${auth[@]+"${auth[@]}"} "$url" -O "$dest"
   else
     echo "ERROR: Neither curl nor wget found. Please install one and retry."
     exit 1
@@ -96,25 +93,6 @@ download_if_url_set() {
 }
 
 # ---------------------------------------------------------------------------
-# Hugging Face token check
-# ---------------------------------------------------------------------------
-
-if [ -z "${HF_TOKEN:-}" ]; then
-  echo ""
-  echo "⚠  HF_TOKEN environment variable not set."
-  echo ""
-  echo "   MedGemma is a gated model. You need to:"
-  echo "   1. Create a Hugging Face account at https://huggingface.co"
-  echo "   2. Request access at https://huggingface.co/google/medgemma-4b-it-gguf"
-  echo "   3. Generate a User Access Token at https://huggingface.co/settings/tokens"
-  echo "   4. Export it: export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxx"
-  echo "   5. Re-run this script"
-  echo ""
-  echo "   Alternatively, download the files manually and place them in models/"
-  exit 1
-fi
-
-# ---------------------------------------------------------------------------
 # Run downloads
 # ---------------------------------------------------------------------------
 
@@ -123,7 +101,7 @@ echo "  TalkingLabs — Downloading local model assets"
 echo "==================================================================="
 
 download_if_url_set "$LITERT_MODEL_URL" "$MODELS_DIR/$LITERT_MODEL_FILE" "Gemma-4 LiteRT-LM model"
-download_file "$MODEL_URL" "$MODELS_DIR/$MODEL_FILE" "MedGemma text model"
+download_file "$MODEL_URL" "$MODELS_DIR/$MODEL_FILE" "Gemma 4 GGUF model"
 download_file "$MMPROJ_URL" "$MODELS_DIR/$MMPROJ_FILE" "Multimodal projection weights"
 
 # ---------------------------------------------------------------------------
@@ -153,7 +131,7 @@ check_size() {
 echo ""
 echo "--- Verifying downloads ---"
 check_size "$MODELS_DIR/$LITERT_MODEL_FILE" $MIN_LITERT_SIZE "Gemma-4 LiteRT-LM model"
-check_size "$MODELS_DIR/$MODEL_FILE" $MIN_MODEL_SIZE "MedGemma model"
+check_size "$MODELS_DIR/$MODEL_FILE" $MIN_MODEL_SIZE "Gemma 4 GGUF model"
 check_size "$MODELS_DIR/$MMPROJ_FILE" $MIN_MMPROJ_SIZE "Multimodal projection"
 
 echo ""

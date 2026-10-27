@@ -45,44 +45,28 @@ cd ios && pod install && cd ..
 
 ## 3. Download the Model Weights
 
-The model files are **not included in the repository** (they are gitignored). You must download them separately. Which files you need depends on the runtime (see [README → Model Runtimes](README.md#model-runtimes)):
+The model files are **not included in the repository** (they are gitignored). Both runtimes use Google's Gemma 4 E2B model, packaged differently for each (see [README → Model Runtimes](README.md#model-runtimes)):
 
-| Runtime | Files |
-|---------|-------|
-| Android `litertlm` (default) | `models/gemma-4-E2B-it.litertlm` (~2.4 GB) |
-| `llama` (iOS, or Android fallback) | `models/medgemma-1.5-4b-it-Q3_K_M.gguf` + `models/mmproj-F16.gguf` |
+| Runtime | File | Size | Source |
+|---------|------|------|--------|
+| Android `litertlm` (default) | `models/gemma-4-E2B-it.litertlm` | 2.59 GB | [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) |
+| `llama` (iOS, or Android fallback) | `models/gemma-4-E2B-it-Q4_0.gguf` | 2.84 GB | [ggml-org/gemma-4-E2B-it-GGUF](https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF) |
+| `llama` vision projector | `models/mmproj-gemma-4-E2B-it-Q8_0.gguf` | 0.56 GB | same repo; needed for photo parsing |
 
-The download script fetches the Gemma 4 file only if `LITERT_MODEL_URL` is set; otherwise place it in `models/` manually.
+Sizes are in decimal GB (10⁹ bytes), as Hugging Face and Finder report them. Both repositories are public, so no Hugging Face token is needed.
 
-### Step 3a — Get a Hugging Face access token
-
-1. Create an account at [huggingface.co](https://huggingface.co)
-2. Navigate to [google/medgemma-4b-it-gguf](https://huggingface.co/google/medgemma-4b-it-gguf) and request access
-3. Once approved, generate a User Access Token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) (read access is sufficient)
-
-### Step 3b — Run the download script
+### Run the download script
 
 ```bash
-export HF_TOKEN=hf_your_token_here
 chmod +x scripts/download-models.sh
 ./scripts/download-models.sh
 ```
 
-This downloads the MedGemma files into `models/` (plus the Gemma 4 file when `LITERT_MODEL_URL` is set):
-
-| File | Size | Purpose |
-|------|------|---------|
-| `medgemma-1.5-4b-it-Q3_K_M.gguf` | ~1.1 GB | Text inference model (lab extraction + interpretation) |
-| `mmproj-F16.gguf` | ~550 MB | Multimodal projection weights (direct image analysis) |
+This downloads all three files (~6 GB) into `models/`. To skip the LiteRT file (e.g. iOS only), run `LITERT_MODEL_URL="" ./scripts/download-models.sh`. If `HF_TOKEN` is set, the script sends it with each request.
 
 ### Alternative: Manual download
 
-If the script fails, you can download the files manually from the Hugging Face model page and place them at:
-
-```
-models/medgemma-1.5-4b-it-Q3_K_M.gguf
-models/mmproj-F16.gguf
-```
+If the script fails, download the files from the repositories above and place them at the paths in the table.
 
 ---
 
@@ -114,7 +98,7 @@ Or use the Xcode Build button directly after the above command generates the pro
 npm run android:push-model
 ```
 
-This uses `adb push` to copy whichever model files exist in `models/` to `/data/local/tmp`. The app copies them to its private documents directory on first launch, so the device briefly needs free space for two copies (~5 GB for the Gemma 4 file).
+This uses `adb push` to copy whichever model files exist in `models/` to `/data/local/tmp`. The app copies them to its private documents directory on first launch, so the device briefly needs free space for two copies (~5.2 GB for the LiteRT file).
 
 4. Create `.env.local` in the project root (see [README → Configuration](README.md#configuration)), for example:
 
@@ -213,7 +197,7 @@ eas build --platform ios --profile preview
 eas build --platform android --profile preview
 ```
 
-> **Important:** The model weights are NOT included in the EAS build. For the `llama` runtime, the app downloads MedGemma on first launch if `MODEL_DOWNLOAD_URL` and `MMPROJ_DOWNLOAD_URL` are set in `src/services/LlamaService.js`. There is no equivalent download for the Gemma 4 LiteRT file yet. Without a model, testers get rule-based parsing and the mock data demo mode.
+> **Important:** The model weights are NOT included in the EAS build. For the `llama` runtime, the app downloads the Gemma 4 GGUF files on first launch if `MODEL_DOWNLOAD_URL` and `MMPROJ_DOWNLOAD_URL` are set in `src/services/LlamaService.js`. There is no equivalent download for the Gemma 4 LiteRT file yet. Without a model, testers get rule-based parsing and the mock data demo mode.
 
 ### Share the build
 
@@ -232,7 +216,7 @@ After the build completes on EAS servers:
 | `npx expo run:android` | Build and run on connected Android device |
 | `npm run android:push-model` | Push model files to Android device via adb |
 | `npm run android:check-model` | Verify model files are on the Android device |
-| `./scripts/download-models.sh` | Download model weights (MedGemma; Gemma 4 if `LITERT_MODEL_URL` is set) |
+| `./scripts/download-models.sh` | Download Gemma 4 model weights for both runtimes |
 | `npm test` | Run Jest unit tests |
 
 ---
@@ -278,7 +262,7 @@ cd ios && pod repo update && pod install && cd ..
 ## 10. Environment Notes
 
 - Runtime settings come from `.env.local` (gitignored). Without it, the app defaults to the local provider in `auto` mode. Restart Metro after editing it.
-- `HF_TOKEN` (shell variable) is only used by the download script.
+- `HF_TOKEN` (shell variable) is optional and only used by the download script.
 - `EXPO_PUBLIC_HF_API_TOKEN` is used at runtime by Akan voice playback, which calls Hugging Face-hosted models and needs internet. English and French playback use on-device `expo-speech`.
 - No backend server is required for on-device inference. The optional remote provider (`EXPO_PUBLIC_MODEL_PROVIDER=remote`) needs a Gemma API server you host.
 - `EXPO_PUBLIC_` values are compiled into the app bundle. Do not put production secrets in them.

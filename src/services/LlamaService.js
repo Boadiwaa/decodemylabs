@@ -42,8 +42,8 @@ const NATIVE_MODULE_AVAILABLE = TurboModuleRegistry.get('RNLlama') != null;
  * documentDirectory on first launch. This avoids bundling a ~3 GB
  * file in the iOS .app or Android APK.
  */
-const MODEL_DOWNLOAD_URL = null; // e.g. 'https://huggingface.co/google/medgemma-4b-it-gguf/resolve/main/medgemma-1.5-4b-it-Q3_K_M.gguf'
-const MMPROJ_DOWNLOAD_URL = null; // e.g. 'https://huggingface.co/google/medgemma-4b-it-gguf/resolve/main/mmproj-F16.gguf'
+const MODEL_DOWNLOAD_URL = null; // e.g. 'https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_0.gguf'
+const MMPROJ_DOWNLOAD_URL = null; // e.g. 'https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-E2B-it-Q8_0.gguf'
 
 /** Default inference parameters tuned for medical text generation */
 const DEFAULT_PARAMS = {
@@ -52,7 +52,10 @@ const DEFAULT_PARAMS = {
   top_p: 0.9,
   top_k: 40,
   repeat_penalty: 1.1,
-  stop: ['<end_of_turn>', '<eos>', '</s>'],
+  stop: ['<turn|>', '<eos>'],
+  // Apply the chat template stored in the GGUF (Gemma 4) and skip its thinking channel.
+  jinja: true,
+  enable_thinking: false,
 };
 
 /**
@@ -68,7 +71,7 @@ const DEFAULT_MODEL_PARAMS = Platform.select({
     n_gpu_layers: 99,       // Full Metal GPU offload
     use_mlock: false,
     use_mmap: true,
-    ctx_shift: false,       // Required for Gemma 3 multimodal
+    ctx_shift: false,       // Required for Gemma multimodal
   },
   android: {
     n_ctx: 2048,            // Balanced context for clinical text
@@ -77,7 +80,7 @@ const DEFAULT_MODEL_PARAMS = Platform.select({
     n_gpu_layers: 0,        // CPU-only — avoids Vulkan driver issues
     use_mlock: false,
     use_mmap: true,         // Safe from app-private documentDirectory
-    ctx_shift: false,       // Required for Gemma 3 multimodal
+    ctx_shift: false,       // Required for Gemma multimodal
   },
 });
 
@@ -736,7 +739,7 @@ class LlamaService {
     this._abortCurrent = null;
 
     const completionParams = {
-      prompt,
+      messages: [{ role: 'user', content: prompt }],
       ...DEFAULT_PARAMS,
       ...params,
     };
@@ -796,17 +799,15 @@ class LlamaService {
   }
 
   /**
-   * Format a prompt using MedGemma/Gemma chat template.
+   * Combine system instructions and the user message into one user turn.
+   * Each runtime applies the model's own chat template (llama.rn via jinja,
+   * LiteRT-LM via its Conversation API), so no turn markers are added here.
    * @param {string} systemPrompt - System instructions
    * @param {string} userMessage - User's query
-   * @returns {string} Formatted prompt
+   * @returns {string} Prompt text
    */
   formatPrompt(systemPrompt, userMessage) {
-    return (
-      `<start_of_turn>user\n` +
-      `${systemPrompt}\n\n${userMessage}<end_of_turn>\n` +
-      `<start_of_turn>model\n`
-    );
+    return `${systemPrompt}\n\n${userMessage}`;
   }
 
   /**

@@ -1,5 +1,5 @@
 /**
- * LabInterpretationAgent — uses on-device MedGemma to interpret lab results.
+ * LabInterpretationAgent — uses on-device Gemma to interpret lab results.
  * Conforms to the agent interface in types.js.
  *
  * Builds a prompt from patient data + lab context, sends it to the local
@@ -560,7 +560,7 @@ export class LabInterpretationAgent {
 
       return createAgentOutput(AGENT_NAME, personalizedParsed, {
         confidence: personalizedParsed.confidence || 0.8,
-        reasoning: `MedGemma on-device inference for ${lab.test_name}`,
+        reasoning: `Gemma on-device inference for ${lab.test_name}`,
         warnings: ['Prototype output — not for clinical use'],
       });
     } catch (error) {

@@ -3,7 +3,7 @@
  *
  * After upload:
  *  1. Shows a processing progress bar
- *  2. Parses the report with MedGemma (or regex fallback)
+ *  2. Parses the report with Gemma (or regex fallback)
  *  3. Stores structured lab results on-device
  *  4. Shows extracted values for user confirmation
  *  5. Also offers manual entry for images without OCR support
@@ -180,12 +180,12 @@ export default function LabUploadScreen({ navigation }) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await loadReports();
 
-      // Step 2: For images, try direct MedGemma vision analysis first
+      // Step 2: For images, try direct Gemma vision analysis first
       if (type === 'image') {
         setProcessingMessage('Analyzing lab report with AI vision...');
         progressAnim.value = withTiming(0.3, { duration: 500 });
 
-        // Try direct image → MedGemma (bypasses OCR entirely)
+        // Try direct image → Gemma (bypasses OCR entirely)
         const visionResults = await parseLabReportFromImage(
           storedUri,
           report.id,

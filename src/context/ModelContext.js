@@ -27,7 +27,7 @@ export function ModelProvider({ children }) {
         setLoadingPercent(pct);
         setLoadingProgress(
           pct > 0
-            ? (isRemote ? `Connecting to Gemma API… ${pct}%` : `Loading MedGemma model… ${pct}%`)
+            ? (isRemote ? `Connecting to Gemma API… ${pct}%` : `Loading Gemma model… ${pct}%`)
             : (isRemote ? 'Checking Gemma API configuration…' : 'Locating model file…')
         );
       }

@@ -3,7 +3,7 @@
  *
  * For images: uses on-device OCR (Apple Vision on iOS, ML Kit on Android)
  * via the custom expo-ocr module, then parses the extracted text with
- * MedGemma or regex fallback.
+ * Gemma or regex fallback.
  *
  * For PDFs: sends the PDF directly to the model for extraction, then falls
  * back to a text-extraction + model parse path when needed.
@@ -207,8 +207,8 @@ async function extractLikelyTextFromPdf(pdfUri) {
 }
 
 /**
- * Parse a lab report by sending the image DIRECTLY to MedGemma (multimodal).
- * This bypasses OCR entirely and uses MedGemma's vision capabilities.
+ * Parse a lab report by sending the image DIRECTLY to Gemma (multimodal).
+ * This bypasses OCR entirely and uses Gemma's vision capabilities.
  *
  * @param {string} imageUri   - Local file URI to the lab report image
  * @param {string} reportId   - ID of the source report for linking
@@ -261,8 +261,8 @@ export async function parseLabReportFromImage(imageUri, reportId, onProgress) {
 
     onProgress?.(0.7);
 
-    console.log('[LabReportParser] MedGemma vision output length:', rawOutput?.length || 0);
-    console.log('[LabReportParser] MedGemma vision output (first 500):', rawOutput?.slice(0, 500));
+    console.log('[LabReportParser] Gemma vision output length:', rawOutput?.length || 0);
+    console.log('[LabReportParser] Gemma vision output (first 500):', rawOutput?.slice(0, 500));
 
     const results = parseModelExtractionOutput(rawOutput, reportId);
     if (results.length > 0) {
@@ -345,7 +345,7 @@ export async function parseLabReportFromPdf(pdfUri, reportId, onProgress) {
 }
 
 /**
- * Parse a lab report using MedGemma model.
+ * Parse a lab report using the Gemma model.
  * @param {string} reportText - Extracted text from the report
  * @param {string} reportId   - ID of the source report for linking
  * @param {function} [onProgress] - Progress callback (0-1)

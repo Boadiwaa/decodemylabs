@@ -48,8 +48,8 @@ fi
 
 MODELS=(
   "models/gemma-4-E2B-it.litertlm"
-  "models/medgemma-1.5-4b-it-Q3_K_M.gguf"
-  "models/mmproj-F16.gguf"
+  "models/gemma-4-E2B-it-Q4_0.gguf"
+  "models/mmproj-gemma-4-E2B-it-Q8_0.gguf"
 )
 DEST_DIR="/data/local/tmp"
 

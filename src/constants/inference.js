@@ -17,11 +17,11 @@ export const LOCAL_INFERENCE_RUNTIME = RUNTIME_OPTIONS.includes(rawRuntime) ? ra
 
 // Local model filenames
 export const LLAMA_MODEL_FILENAME = String(
-  process.env.EXPO_PUBLIC_LLAMA_MODEL_FILENAME || 'medgemma-1.5-4b-it-Q3_K_M.gguf'
+  process.env.EXPO_PUBLIC_LLAMA_MODEL_FILENAME || 'gemma-4-E2B-it-Q4_0.gguf'
 ).trim();
 
 export const LLAMA_MMPROJ_FILENAME = String(
-  process.env.EXPO_PUBLIC_LLAMA_MMPROJ_FILENAME || 'mmproj-F16.gguf'
+  process.env.EXPO_PUBLIC_LLAMA_MMPROJ_FILENAME || 'mmproj-gemma-4-E2B-it-Q8_0.gguf'
 ).trim();
 
 export const LITERT_MODEL_FILENAME = String(

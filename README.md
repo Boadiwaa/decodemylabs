@@ -2,7 +2,7 @@
 
 > **Lab results you can actually understand — in your language, on your phone, with on-device AI.**
 
-TalkingLabs is a mobile health app that transforms lab reports into plain-language explanations with voice playback. Patients photograph or upload a saved copy of their lab report, and the app uses an on-device model (Gemma 4 on Android, MedGemma as an alternative runtime) to extract values, flag abnormal results, and explain what they mean in English, French, or Akan.
+TalkingLabs is a mobile health app that transforms lab reports into plain-language explanations with voice playback. Patients photograph or upload a saved copy of their lab report, and the app uses Google's Gemma 4 model, running on the phone, to extract values, flag abnormal results, and explain what they mean in English, French, or Akan.
 
 ---
 
@@ -26,7 +26,7 @@ TalkingLabs addresses each of these gaps.
 Patient photographs or uploads a lab report (image or PDF)
         ↓
 On-device model reads the report directly
-  (Gemma 4 via LiteRT-LM on Android, or MedGemma via llama.rn)
+  (Gemma 4 via LiteRT-LM on Android, or via llama.rn on iOS)
   → structured values: test name, value, unit, range
         ↓  if the model is unavailable or returns nothing
 expo-ocr text → model text parsing → regex extraction → manual entry
@@ -62,11 +62,11 @@ Parsing, classification, and storage run **on-device**. Two features use the net
 
 | Runtime | Model | Platforms | Notes |
 |---------|-------|-----------|-------|
-| `litertlm` | Gemma 4 E2B (`gemma-4-E2B-it.litertlm`, ~2.4 GB) | Android | Default in `.env.local`. Text and image input on CPU. Requires LiteRT-LM ≥ 0.10.1. |
-| `llama` | MedGemma 4B (`medgemma-1.5-4b-it-Q3_K_M.gguf` + `mmproj-F16.gguf`) | iOS, Android | Via `llama.rn`. iOS has no LiteRT bridge, so it uses this runtime. |
+| `litertlm` | Gemma 4 E2B (`gemma-4-E2B-it.litertlm`, 2.59 GB) | Android | Default in `.env.local`. Text and image input on CPU. Requires LiteRT-LM ≥ 0.10.1. |
+| `llama` | Gemma 4 E2B GGUF (`gemma-4-E2B-it-Q4_0.gguf` 2.84 GB + `mmproj-gemma-4-E2B-it-Q8_0.gguf` 0.56 GB) | iOS, Android | Via `llama.rn` ≥ 0.12 (earlier versions can't load Gemma 4). iOS has no LiteRT bridge, so it uses this runtime. |
 | `remote` provider | Gemma API you host | Both | Set `EXPO_PUBLIC_MODEL_PROVIDER=remote`. Needs a server; see [Configuration](#configuration). |
 
-MedGemma's medical pre-training helps with abbreviations (SGPT → ALT), unit variations (mg/dL vs mmol/L), and calibrated urgency language. Whichever model runs, severity always comes from the deterministic rules in `reference_ranges.js`, not from the model.
+Both runtimes run the same model, so results should be similar across platforms. Severity always comes from the deterministic rules in `reference_ranges.js`, not from the model.
 
 If a native model load crashes the app, the next launch skips that runtime and continues in rule-based mode (see `LiteRTService.js`).
 
@@ -78,7 +78,7 @@ If a native model load crashes the app, the next launch skips that runtime and c
 src/
 ├── agents/
 │   ├── AgentOrchestrator.js   ← Runs all agents for one lab result
-│   ├── LabInterpretationAgent.js  ← MedGemma: generates explanation + next steps
+│   ├── LabInterpretationAgent.js  ← Gemma: generates explanation + next steps
 │   └── types.js               ← Agent interface contract (createAgentOutput)
 │
 ├── services/
@@ -104,7 +104,7 @@ src/
 │   └── TrendsScreen.js        ← Historical trend charts
 │
 ├── components/
-│   ├── AIInsightCard.js       ← Renders MedGemma explanation
+│   ├── AIInsightCard.js       ← Renders the model's explanation
 │   ├── TrendChart.js          ← react-native-chart-kit wrapper
 │   ├── TTSPlayer.js           ← Language selector + playback controls
 │   └── ModelStatusBar.js      ← Shows model loading progress
@@ -119,8 +119,8 @@ modules/
 
 models/                        ← GITIGNORED — download via scripts/download-models.sh
 ├── gemma-4-E2B-it.litertlm
-├── medgemma-1.5-4b-it-Q3_K_M.gguf
-└── mmproj-F16.gguf
+├── gemma-4-E2B-it-Q4_0.gguf
+└── mmproj-gemma-4-E2B-it-Q8_0.gguf
 
 prompts/
 ├── labInterpretation.js       ← Interpretation prompts (imported by the agent)
@@ -135,10 +135,10 @@ __tests__/                     ← Jest unit tests (npm test)
 ```
 LabUploadScreen
   → LabReportParser.parseLabReportFromImage(imageUri)
-      1. llamaService.completeWithImage()  ← MedGemma vision (Tier 1)
+      1. llamaService.completeWithImage()  ← Gemma vision (Tier 1)
          OR
       2. recognizeText(imageUri)            ← expo-ocr (Apple Vision / ML Kit)
-         → llamaService.complete()          ← MedGemma text (Tier 2)
+         → llamaService.complete()          ← Gemma text (Tier 2)
          OR
       3. extractWithRegex(text)             ← 30+ pattern regex engine (Tier 3)
   → [ParsedLabResult, ...]                  ← normalized, severity-classified
@@ -150,7 +150,7 @@ PatientDetailScreen (legacy, not linked from the main flow)
   → AgentOrchestrator.runAll({ patient, lab, trend, mode })
       → LabInterpretationAgent.run()
           → buildUserPrompt()               ← patient context + lab data
-          → llamaService.complete()         ← MedGemma generates explanation
+          → llamaService.complete()         ← Gemma generates explanation
           → parseModelOutput()              ← extract structured sections
       → AgentOutput { summary, actions, next_steps, en, fr, ak }
 
@@ -165,7 +165,7 @@ PatientDetailScreen (legacy, not linked from the main flow)
 | Layer | Technology |
 |-------|-----------|
 | Mobile framework | Expo SDK 54 / React Native 0.81 |
-| On-device LLM | LiteRT-LM 0.10.2 + Gemma 4 E2B (Android); `llama.rn` + MedGemma `Q3_K_M` GGUF |
+| On-device LLM | Gemma 4 E2B via LiteRT-LM 0.10.2 (Android) or `llama.rn` 0.12.9 GGUF (iOS) |
 | OCR | Custom `expo-ocr` module (Apple Vision on iOS, ML Kit on Android) |
 | Navigation | React Navigation 7 (native stack + bottom tabs) |
 | Charts | `react-native-chart-kit` |
@@ -186,7 +186,6 @@ See [SETUP.md](SETUP.md) for full step-by-step instructions.
 git clone https://github.com/Boadiwaa/talkinglabs.git
 cd talkinglabs
 npm install
-export HF_TOKEN=hf_your_token_here
 chmod +x scripts/download-models.sh && ./scripts/download-models.sh
 # create .env.local (see Configuration below)
 npx expo run:ios   # or: npx expo run:android
@@ -208,7 +207,7 @@ Settings are read from `.env.local` (gitignored) at bundle time. Restart Metro a
 | `EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD` | `false` | Allow model loading on Android emulators |
 | `EXPO_PUBLIC_MIN_ANDROID_MODEL_RAM_GB` | `5.5` | RAM floor for local models on Android (skipped when runtime is `litertlm`) |
 | `EXPO_PUBLIC_LITERT_MODEL_FILENAME` | `gemma-4-E2B-it.litertlm` | LiteRT model file name |
-| `EXPO_PUBLIC_LLAMA_MODEL_FILENAME` / `EXPO_PUBLIC_LLAMA_MMPROJ_FILENAME` | MedGemma files | llama.rn model files |
+| `EXPO_PUBLIC_LLAMA_MODEL_FILENAME` / `EXPO_PUBLIC_LLAMA_MMPROJ_FILENAME` | Gemma 4 GGUF files | llama.rn model files |
 | `EXPO_PUBLIC_HF_API_TOKEN` | — | Hugging Face token for Akan translation |
 | `EXPO_PUBLIC_GEMMA_API_*` | — | Remote provider URL, model, endpoints, timeout, and key |
 
@@ -228,7 +227,7 @@ EXPO_PUBLIC_LOCAL_INFERENCE_RUNTIME=litertlm
 - **Clinical reference ranges** live exclusively in `src/domain/reference_ranges.js` — never hardcoded elsewhere.
 - **Mock data** for UI development lives in `src/data/mockData.js`.
 - **LLM prompts** live in `prompts/` as JS modules — never inlined in agent or parser code.
-- **Models** (~5 GB for all runtimes) are gitignored. See `scripts/download-models.sh`.
+- **Models** (~6 GB for both runtimes) are gitignored. See `scripts/download-models.sh`.
 
 ---
 

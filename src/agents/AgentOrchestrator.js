@@ -9,7 +9,7 @@
  * Data flow:
  *   PatientDetailScreen
  *     → orchestrator.runAll({ patient, lab, trend, mode })
- *       → LabInterpretationAgent.run()   (MedGemma inference)
+ *       → LabInterpretationAgent.run()   (Gemma inference)
  *       → [future agents...]
  *     ← array of validated AgentOutput objects
  *     → rendered in PatientDetailScreen / AIInsightCard

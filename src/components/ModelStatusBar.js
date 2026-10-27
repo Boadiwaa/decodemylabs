@@ -47,7 +47,7 @@ export default function ModelStatusBar({ compact = false, onRetry }) {
     return (
       <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.readyBar}>
         <Ionicons name="sparkles" size={14} color={Colors.tealDark} />
-        <Text style={styles.readyText}>MedGemma AI ready</Text>
+        <Text style={styles.readyText}>Gemma AI ready</Text>
       </Animated.View>
     );
   }
@@ -56,7 +56,7 @@ export default function ModelStatusBar({ compact = false, onRetry }) {
     return (
       <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.loadingBar}>
         <ActivityIndicator size="small" color={Colors.tealDark} />
-        <Text style={styles.loadingText}>Loading MedGemma model…</Text>
+        <Text style={styles.loadingText}>Loading Gemma model…</Text>
       </Animated.View>
     );
   }

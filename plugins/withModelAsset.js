@@ -11,7 +11,7 @@
  *          cannot embed 2.8 GB files.  Also creates a helper script.
  *
  * Usage in app.json:
- *   ["./plugins/withModelAsset", { "modelPath": "models/medgemma-1.5-4b-it-Q3_K_M.gguf" }]
+ *   ["./plugins/withModelAsset", { "modelPath": "models/gemma-4-E2B-it-Q4_0.gguf" }]
  */
 
 const { withXcodeProject, withDangerousMod } = require('expo/config-plugins');
@@ -20,7 +20,7 @@ const fs = require('fs');
 
 function withModelAsset(config, { modelPath, mmprojPath } = {}) {
   if (!modelPath) {
-    throw new Error('[withModelAsset] "modelPath" is required (e.g. "models/medgemma-1.5-4b-it-Q3_K_M.gguf")');
+    throw new Error('[withModelAsset] "modelPath" is required (e.g. "models/gemma-4-E2B-it-Q4_0.gguf")');
   }
 
   // Apply iOS config for model

@@ -127,7 +127,7 @@ export default function MedicalHistoryScreen({ navigation }) {
             <Text style={styles.title}>Any health conditions we should know about?</Text>
             <Text style={styles.subtitle}>
               If you've been living with any of these, let us know — and for how long.
-              This helps MedGemma give you much more personalized explanations of your lab results.
+              This helps the app give you much more personalized explanations of your lab results.
             </Text>
           </Animated.View>
 

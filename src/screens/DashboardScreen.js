@@ -50,7 +50,7 @@ export default function DashboardScreen({ navigation }) {
     );
   };
 
-  // Attempt to load MedGemma model on dashboard mount
+  // Attempt to load Gemma model on dashboard mount
   useEffect(() => {
     const interactionTask = InteractionManager.runAfterInteractions(() => {
       initializeModel();

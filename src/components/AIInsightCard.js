@@ -33,7 +33,7 @@ export default function AIInsightCard({
           {isAIGenerated ? (
             <View style={styles.aiBadge}>
               <Ionicons name="sparkles" size={12} color={Colors.tealDark} />
-              <Text style={styles.aiBadgeText}>MedGemma AI</Text>
+              <Text style={styles.aiBadgeText}>Gemma AI</Text>
             </View>
           ) : (
             <View style={styles.fallbackBadge}>
