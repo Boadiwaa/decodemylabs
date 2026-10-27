@@ -757,3 +757,6 @@ export default {
   recognizeTextFromImage,
   createManualEntryPrompt,
 };
+
+// Internal helpers exposed for unit tests only.
+export const __testing = { normalizeTestName, extractWithRegex };
