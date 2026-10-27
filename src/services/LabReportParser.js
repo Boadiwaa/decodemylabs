@@ -143,8 +143,9 @@ const TEST_PATTERNS = [
   { pattern: /hba1c|hemoglobin\s*a1c|glycated\s*hemoglobin/i, name: 'HbA1c', unit: '%', range: '<5.7%' },
   { pattern: /blood\s*pressure|bp\b|systolic/i, name: 'Blood Pressure', unit: 'mmHg', range: '<120/80 mmHg' },
   // Bilirubin subtypes BEFORE generic bilirubin
-  { pattern: /direct\s*bilirubin|conjugated\s*bilirubin/i, name: 'Direct Bilirubin', unit: 'umol/L', range: '0-3.4 umol/L' },
-  { pattern: /indirect\s*bilirubin|unconjugated\s*bilirubin/i, name: 'Indirect Bilirubin', unit: 'umol/L', range: '1.7-17.1 umol/L' },
+  // \b keeps "indirect"/"unconjugated" from matching the direct pattern.
+  { pattern: /\bdirect\s*bilirubin|\bconjugated\s*bilirubin/i, name: 'Direct Bilirubin', unit: 'umol/L', range: '0-3.4 umol/L' },
+  { pattern: /\bindirect\s*bilirubin|\bunconjugated\s*bilirubin/i, name: 'Indirect Bilirubin', unit: 'umol/L', range: '1.7-17.1 umol/L' },
   { pattern: /(?:total\s*)?bilirubin/i, name: 'Bilirubin', unit: 'umol/L', range: '0-21 umol/L' },
   // ALT before AST (SGPT before SGOT) — both have "transaminase"
   { pattern: /\balt\b|alanine\s*(?:amino)?transaminase|\bsgpt\b/i, name: 'ALT', unit: 'U/L', range: '0-35 U/L' },
