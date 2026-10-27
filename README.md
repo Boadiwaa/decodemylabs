@@ -2,9 +2,7 @@
 
 > **Lab results you can actually understand — in your language, on your phone, no internet required.**
 
-TalkingLabs is a mobile health app that transforms lab reports into plain-language explanations with voice playback. Patients photograph or upload a saved copy of their lab report, and the app uses an on-device MedGemma model to extract values, flag abnormal results, and explain what they mean in English, French, or Akan.
-
-Built for [HAI-DEF Hackathon 2026](https://hai-def.org).
+TalkingLabs is a mobile health app that transforms lab reports into plain-language explanations with voice playback. Patients photograph or upload a saved copy of their lab report, and the app uses an on-device Gemma 4 model to extract values, flag abnormal results, and explain what they mean in English, French, or Akan.
 
 ---
 
@@ -65,8 +63,6 @@ Everything runs **fully on-device** — no server, no cloud API, no internet req
 ## Why MedGemma?
 
 A generic vision or language model cannot reliably interpret medical abbreviations (SGPT → ALT), handle unit variations (mg/dL vs mmol/L), or calibrate urgency language correctly. MedGemma's medical pre-training handles all of this natively, with a dramatically lower hallucination rate on clinical content compared to general-purpose models.
-
-See the [Technical Write-up](#technical-write-up) section for full details.
 
 ---
 
@@ -191,13 +187,7 @@ This is a **prototype with mock data**. It is:
 - **Not** a substitute for professional clinical judgment
 - **Not** HIPAA-compliant (demo encryption only)
 
-Every AI-generated explanation includes: *"Please consult your healthcare provider for clinical decisions."*
-
----
-
-## Technical Write-up
-
-For the full hackathon technical write-up including MedGemma usage rationale, deployment challenges, and impact analysis, see the submission document.
+Every AI-generated explanation includes: *"Consult a licensed healthcare provider."*
 
 ---
 
