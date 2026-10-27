@@ -11,7 +11,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
 
 // ── Config ──────────────────────────────────────────────────────────────────
-const HF_API_TOKEN = '';
+// Set EXPO_PUBLIC_HF_API_TOKEN in .env.local. Do not commit real tokens.
+const HF_API_TOKEN = String(process.env.EXPO_PUBLIC_HF_API_TOKEN || '').trim();
 
 const TRANSLATION_MODEL = 'google/madlad400-3b-mt';
 const HF_BASE = 'https://router.huggingface.co/hf-inference/models';
