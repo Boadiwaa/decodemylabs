@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useUserLabData } from '../hooks/useUserLabData';
+import { useMetricExplanation } from '../hooks/useMetricExplanation';
 import { getFullPatientContext } from '../services/PatientStorage';
 import { classifySeverity } from '../domain/reference_ranges';
 import { analyzeTrend } from '../domain/interpretation_rules';
@@ -125,6 +126,7 @@ export default function MetricDetailScreen({ route, navigation }) {
   } = useUserLabData();
 
   const [patientContext, setPatientContext] = useState(null);
+  const [contextLoaded, setContextLoaded] = useState(false);
 
   const effectivePatientId = currentPatientId || patientId;
   const reportData = reportId ? getReportSessionData(reportId) : null;
@@ -167,7 +169,7 @@ export default function MetricDetailScreen({ route, navigation }) {
     return buildPersonalizationInsights({ lab: selectedResult, patientContext });
   }, [selectedResult, patientContext]);
 
-  const explanations = useMemo(() => {
+  const ruleExplanations = useMemo(() => {
     const en = buildEnglishExplanation({
       result: selectedResult,
       severity,
@@ -190,6 +192,31 @@ export default function MetricDetailScreen({ route, navigation }) {
     };
   }, [selectedResult, severity, trendAnalysis, personalization]);
 
+  const aiExplanation = useMetricExplanation({
+    lab: selectedResult,
+    trend,
+    patient,
+    patientContext,
+    contextLoaded,
+    severity,
+  });
+
+  // Prefer Gemma's text; Akan audio is then translated from the AI English text.
+  const ai = aiExplanation.status === 'ready' ? aiExplanation.explanation : null;
+  const explanations = ai
+    ? { en: ai.en, fr: ai.fr || ruleExplanations.fr }
+    : ruleExplanations;
+  const sourceLabels = ai
+    ? {
+        en: 'AI EXPLANATION · GEMMA',
+        fr: ai.fr ? 'AI EXPLANATION · GEMMA' : 'STANDARD EXPLANATION',
+        ak: 'AI EXPLANATION · TRANSLATED TO TWI WHEN PLAYED',
+      }
+    : null;
+  const statusText = aiExplanation.status === 'generating'
+    ? 'Gemma is writing a personal explanation. This can take a minute.'
+    : null;
+
   const nextSteps = useMemo(() => {
     return buildNextSteps({ severity, trendAnalysis, personalization });
   }, [severity, trendAnalysis, personalization]);
@@ -204,6 +231,8 @@ export default function MetricDetailScreen({ route, navigation }) {
         if (mounted) setPatientContext(context);
       } catch (e) {
         if (mounted) setPatientContext(null);
+      } finally {
+        if (mounted) setContextLoaded(true);
       }
     }
 
@@ -286,12 +315,12 @@ export default function MetricDetailScreen({ route, navigation }) {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.card}>
-          <Text style={styles.cardTitle}>What This May Mean</Text>
-          <Text style={styles.cardBody}>{explanations.en}</Text>
-        </Animated.View>
-
-        <TTSPlayer explanations={explanations} />
+        <TTSPlayer
+          title="What This May Mean"
+          explanations={explanations}
+          sourceLabels={sourceLabels}
+          statusText={statusText}
+        />
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.card}>
           <Text style={styles.cardTitle}>Next Steps</Text>

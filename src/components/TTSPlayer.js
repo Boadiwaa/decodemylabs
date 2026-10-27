@@ -20,7 +20,20 @@ const AKAN_STATUS_LABELS = {
   error: 'Akan TTS failed — tap to retry',
 };
 
-export default function TTSPlayer({ explanations }) {
+/**
+ * @param {object} props
+ * @param {{ en: string, fr?: string, ak?: string }} props.explanations - Text per language;
+ *   when `ak` is missing, Akan audio is translated from `en`.
+ * @param {string} [props.title]
+ * @param {{ en?: string, fr?: string, ak?: string }} [props.sourceLabels] - Where each text came from
+ * @param {string} [props.statusText] - Shown with a spinner, e.g. while the AI is writing
+ */
+export default function TTSPlayer({
+  explanations,
+  title = '🔊 Listen to Explanation',
+  sourceLabels,
+  statusText,
+}) {
   const [selectedLang, setSelectedLang] = useState('en');
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
@@ -52,6 +65,13 @@ export default function TTSPlayer({ explanations }) {
     setupAudio();
     return () => { Speech.stop(); };
   }, []);
+
+  // Stop playback if the text changes (e.g. the AI explanation arrives)
+  useEffect(() => {
+    Speech.stop();
+    setIsPlaying(false);
+    akan.stop();
+  }, [explanations.en, explanations.fr, explanations.ak]);
 
   useEffect(() => {
     if (effectivePlaying) {
@@ -177,7 +197,7 @@ export default function TTSPlayer({ explanations }) {
 
   return (
     <Animated.View entering={FadeIn.delay(300)} style={styles.container}>
-      <Text style={styles.title}>🔊 Listen to Explanation</Text>
+      <Text style={styles.title}>{title}</Text>
 
       {/* Language selector */}
       <View style={styles.langRow}>
@@ -197,9 +217,21 @@ export default function TTSPlayer({ explanations }) {
 
       {/* Explanation text */}
       <View style={styles.textBox}>
+        {sourceLabels?.[selectedLang] ? (
+          <View style={styles.sourceChip}>
+            <Ionicons name="sparkles-outline" size={11} color={Colors.tealDark} />
+            <Text style={styles.sourceChipText}>{sourceLabels[selectedLang]}</Text>
+          </View>
+        ) : null}
         <Text style={styles.explanationText}>
           {explanations[selectedLang] || explanations.en}
         </Text>
+        {statusText ? (
+          <View style={styles.statusRow} accessibilityLiveRegion="polite">
+            <ActivityIndicator size="small" color={Colors.tealDark} />
+            <Text style={styles.statusText}>{statusText}</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Play button */}
@@ -274,6 +306,17 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 12,
   },
   explanationText: { ...Typography.bodySmall, color: Colors.textPrimary, fontWeight: '500', lineHeight: 20 },
+  sourceChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    backgroundColor: Colors.tealLight, borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8,
+  },
+  sourceChipText: { fontSize: 10, fontWeight: '700', color: Colors.tealDark, letterSpacing: 0.3 },
+  statusRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.borderLight,
+  },
+  statusText: { ...Typography.caption, color: Colors.textSecondary, flex: 1 },
   playBtn: {
     backgroundColor: Colors.tealDark, borderRadius: 16, paddingVertical: 14,
     alignItems: 'center', justifyContent: 'center',

@@ -99,8 +99,8 @@ src/
 │   ├── DashboardScreen.js     ← Entry point with severity summary
 │   ├── LabUploadScreen.js     ← Photo/PDF capture, parsing, manual entry
 │   ├── ReportScreen.js        ← Report summary and key findings
-│   ├── MetricDetailScreen.js  ← Per-metric trend, explanation, TTS
-│   ├── PatientDetailScreen.js ← Legacy; only screen that runs model interpretation
+│   ├── MetricDetailScreen.js  ← Per-metric trend, Gemma explanation, TTS
+│   ├── PatientDetailScreen.js ← Legacy; not linked from the main flow
 │   └── TrendsScreen.js        ← Historical trend charts
 │
 ├── components/
@@ -143,19 +143,19 @@ LabUploadScreen
       3. extractWithRegex(text)             ← 30+ pattern regex engine (Tier 3)
   → [ParsedLabResult, ...]                  ← normalized, severity-classified
 
-ReportScreen / MetricDetailScreen
+ReportScreen
   → deterministic summaries from reference_ranges.js + personalization.js
 
-PatientDetailScreen (legacy, not linked from the main flow)
-  → AgentOrchestrator.runAll({ patient, lab, trend, mode })
-      → LabInterpretationAgent.run()
+MetricDetailScreen (tap a value in a report)
+  → rule-based explanation shown immediately
+  → useMetricExplanation()                  ← one generation at a time, saved on-device
+      → LabInterpretationAgent.run({ format: 'metric' })
           → buildUserPrompt()               ← patient context + lab data
-          → llamaService.complete()         ← Gemma generates explanation
-          → parseModelOutput()              ← extract structured sections
-      → AgentOutput { summary, actions, next_steps, en, fr, ak }
-
-  → AIInsightCard renders the explanation
-  → TTSPlayer speaks the text via expo-speech / AkanTTSService
+          → llamaService.complete()         ← Gemma writes EN + FR explanation
+          → parseModelOutput()              ← extract sections
+      → isExplanationConsistentWithSeverity()  ← reject text that contradicts reference_ranges.js
+  → TTSPlayer shows the Gemma text and reads it aloud
+      (expo-speech for EN/FR; Akan is translated from the English text by AkanTTSService)
 ```
 
 ---

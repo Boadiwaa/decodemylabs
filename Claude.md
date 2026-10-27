@@ -77,12 +77,12 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - DashboardScreen.js - Main dashboard entry
 - LabUploadScreen.js - Upload, parsing, and manual entry flow
 - ReportScreen.js - Report-first summary and findings
-- MetricDetailScreen.js - Metric deep dive, trend, and TTS
+- MetricDetailScreen.js - Metric deep dive, trend, Gemma explanation (via useMetricExplanation), and TTS
 - TrendsScreen.js - Trend browsing and drill-in
 - DemographicsScreen.js - Demographics onboarding
 - MedicalHistoryScreen.js - Chronic condition onboarding
 - DrugHistoryScreen.js - Medication onboarding
-- PatientDetailScreen.js - Legacy detail screen; registered in navigation but not linked, and the only screen that runs LabInterpretationAgent
+- PatientDetailScreen.js - Legacy detail screen; registered in navigation but not linked
 
 ### Components
 - TrendChart.js - Trend chart UI
@@ -100,7 +100,8 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 
 ### Hooks
 - useUserLabData.js - Real-data and mock-data bridge for labs, alerts, trends, and report sessions
-- useLabInterpretation.js - Interpretation execution and fallback handling
+- useLabInterpretation.js - Interpretation execution and fallback handling (legacy PatientDetailScreen)
+- useMetricExplanation.js - Per-metric Gemma explanation: queued, saved on-device, cross-checked against severity
 - usePatientData.js - Patient data access helper
 - useAkanTTS.js - Akan speech helper
 

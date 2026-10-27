@@ -48,3 +48,14 @@ NKYERƐASEƐ:
 End with: "Consult a licensed healthcare provider."
 
 IMPORTANT: Use the section headers EXACTLY as shown — do not wrap them in ** or ## markers.`;
+
+/** Output format for the single-metric screen: short patient explanation in English and French */
+export const METRIC_OUTPUT_INSTRUCTIONS = `Write for the patient, not for a clinician. Use EXACTLY these section headers on their own line:
+
+EXPLANATION:
+(3 to 5 short sentences in plain English: what this test measures, what this result means, and how it compares with the reference range. Mention the trend if there is one. Mention the patient's conditions or medicines only if they are relevant. Do not diagnose.)
+
+EXPLICATION:
+(The same explanation in French)
+
+Do not add any other sections or headers. End each explanation with: "Consult a licensed healthcare provider."`;

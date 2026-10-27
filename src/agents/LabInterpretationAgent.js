@@ -15,7 +15,12 @@ import { analyzeTrend, assessUrgency } from '../domain/interpretation_rules';
 import { buildPersonalizationInsights } from '../domain/personalization';
 import { getAge, formatDate } from '../utils/helpers';
 import { getFullPatientContext } from '../services/PatientStorage';
-import { SYSTEM_PROMPT, PATIENT_INSTRUCTIONS, OUTPUT_INSTRUCTIONS } from '../../prompts/labInterpretation';
+import {
+  SYSTEM_PROMPT,
+  PATIENT_INSTRUCTIONS,
+  OUTPUT_INSTRUCTIONS,
+  METRIC_OUTPUT_INSTRUCTIONS,
+} from '../../prompts/labInterpretation';
 
 const AGENT_NAME = 'LabInterpretationAgent';
 
@@ -68,8 +73,9 @@ function formatPatientContext(ctx) {
  * Build the user prompt from patient + lab data.
  * @param {object} opts
  * @param {object} [opts.patientContext] - On-device patient context from PatientStorage
+ * @param {string} [opts.outputInstructions] - Output format block (defaults to the full format)
  */
-function buildUserPrompt({ patient, lab, trend, mode, patientContext }) {
+function buildUserPrompt({ patient, lab, trend, mode, patientContext, outputInstructions = OUTPUT_INSTRUCTIONS }) {
   const testName = lab.test_name;
   const numericValue = getNumericLabValue(lab);
   const refRange = REFERENCE_RANGES[testName];
@@ -90,11 +96,14 @@ function buildUserPrompt({ patient, lab, trend, mode, patientContext }) {
     ? `\n\n**Deterministic Personalization Context:**\n- ${personalization.promptContext}`
     : '';
 
+  // Prefer the stored date of birth; display records may carry a placeholder.
+  const dob = patientContext ? patientContext.profile?.dob : patient.dob;
+  const ageLine = dob ? `${getAge(dob)} years` : 'Not provided';
+
   return `Analyze the following lab result for a patient:
 
 **Patient Profile:**
-- Name: ${patient.name}
-- Age: ${getAge(patient.dob)} years
+- Age: ${ageLine}
 - Gender: ${patient.gender}
 - Medical History: ${patient.profile_description}${extraContext}
 
@@ -119,7 +128,7 @@ ${personalizationContext}
 
 ${modeInstructions}
 
-${OUTPUT_INSTRUCTIONS}`;
+${outputInstructions}`;
 }
 
 /**
@@ -457,6 +466,7 @@ function buildFallbackInterpretation({ patient, lab, trend, mode, patientContext
     next_steps: nextSteps,
     confidence: 0.6,
     disclaimer: 'Rule-based analysis — not AI-generated. Consult a licensed healthcare provider.',
+    source: 'rules',
   };
 
   return applyPersonalization(fallback, personalization);
@@ -480,10 +490,13 @@ export class LabInterpretationAgent {
    * @param {string} input.mode - 'patient'
    * @param {function} [input.onToken] - Streaming token callback
    * @param {object} [input.patientContext] - Pre-fetched patient context (demographics, medical hx, drugs)
-   * @returns {Promise<AgentOutput>}
+   * @param {'full'|'metric'} [input.format='full'] - 'metric' asks only for a short EN/FR explanation
+   * @returns {Promise<AgentOutput>} output.source is 'model' or 'rules'
    */
   async run(input) {
-    const { patient, lab, trend, mode, onToken, userId, patientContext: preloadedCtx } = input;
+    const {
+      patient, lab, trend, mode, onToken, userId, patientContext: preloadedCtx, format = 'full',
+    } = input;
 
     // Resolve patient context: use pre-loaded if available, otherwise fetch
     let patientContext = preloadedCtx || null;
@@ -514,12 +527,20 @@ export class LabInterpretationAgent {
     try {
 
       // Build prompt
-      const userPrompt = buildUserPrompt({ patient, lab, trend, mode, patientContext });
+      const isMetric = format === 'metric';
+      const userPrompt = buildUserPrompt({
+        patient,
+        lab,
+        trend,
+        mode,
+        patientContext,
+        outputInstructions: isMetric ? METRIC_OUTPUT_INSTRUCTIONS : OUTPUT_INSTRUCTIONS,
+      });
       const fullPrompt = llamaService.formatPrompt(SYSTEM_PROMPT, userPrompt);
 
       // Run inference
       const rawOutput = await llamaService.complete(fullPrompt, {
-        n_predict: 1024,
+        n_predict: isMetric ? 512 : 1024,
         temperature: 0.3,
       }, onToken);
 
@@ -556,7 +577,7 @@ export class LabInterpretationAgent {
         parsed.disclaimer = 'This is AI-generated guidance. Consult a licensed healthcare provider.';
       }
 
-      const personalizedParsed = applyPersonalization(parsed, personalization);
+      const personalizedParsed = { ...applyPersonalization(parsed, personalization), source: 'model' };
 
       return createAgentOutput(AGENT_NAME, personalizedParsed, {
         confidence: personalizedParsed.confidence || 0.8,

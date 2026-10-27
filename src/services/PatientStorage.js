@@ -10,6 +10,7 @@
  *   @ll_drug_hx_{userId}       → DrugHistory[]
  *   @ll_lab_reports_{userId}   → LabReport[]
  *   @ll_lab_results_{userId}   → ParsedLabResult[]
+ *   @ll_explanations_{userId}  → { [cacheKey]: SavedExplanation }
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,6 +21,7 @@ const KEYS = {
   drugHx: (uid) => `@ll_drug_hx_${uid}`,
   labReports: (uid) => `@ll_lab_reports_${uid}`,
   labResults: (uid) => `@ll_lab_results_${uid}`,
+  explanations: (uid) => `@ll_explanations_${uid}`,
 };
 
 // --------------- helpers ---------------
@@ -213,6 +215,37 @@ export function buildTrendFromResults(allResults, testName, maxPoints = 6) {
       };
     }),
   };
+}
+
+// --------------- Saved AI explanations ---------------
+
+const MAX_SAVED_EXPLANATIONS = 100;
+
+/**
+ * @typedef {Object} SavedExplanation
+ * @property {string} en
+ * @property {string} fr
+ * @property {string} savedAt - ISO timestamp
+ */
+
+/** Look up a previously generated explanation by cache key. */
+export async function getSavedExplanation(userId, cacheKey) {
+  const all = (await _get(KEYS.explanations(userId))) || {};
+  return all[cacheKey] || null;
+}
+
+/** Save a generated explanation, keeping only the most recent entries. */
+export async function saveExplanation(userId, cacheKey, explanation) {
+  const all = (await _get(KEYS.explanations(userId))) || {};
+  all[cacheKey] = { ...explanation, savedAt: new Date().toISOString() };
+  const keys = Object.keys(all);
+  if (keys.length > MAX_SAVED_EXPLANATIONS) {
+    keys
+      .sort((a, b) => (all[a].savedAt || '').localeCompare(all[b].savedAt || ''))
+      .slice(0, keys.length - MAX_SAVED_EXPLANATIONS)
+      .forEach((k) => { delete all[k]; });
+  }
+  return _set(KEYS.explanations(userId), all);
 }
 
 // --------------- Aggregate for model prompt ---------------

@@ -32,3 +32,20 @@ export function assessUrgency(testName, currentValue, trendValues, unit) {
   }
   return { urgent: false, reason: `${testName} within acceptable parameters` };
 }
+const OUT_OF_RANGE_WORDS = /\b(high|higher|low|lower|above|below|outside|elevated|raised|increased|decreased|reduced|abnormal)\b/i;
+const OUT_OF_RANGE_CLAIMS = /\b(above|below|outside)\s+(?:of\s+)?(?:the\s+|your\s+)?(?:normal|expected|reference|healthy)\s+range\b|\babnormal\b/i;
+const IN_RANGE_CLAIMS = /\b(?:within|in)\s+(?:the\s+)?(?:normal|expected|reference|healthy)\s+range\b|\bis\s+(?:completely\s+|perfectly\s+)?normal\b|\bnothing\s+to\s+worry\s+about\b/i;
+
+/**
+ * Cross-check model-written explanation text against the deterministic severity
+ * from reference_ranges.js. Returns false when the text contradicts it, e.g. calls
+ * an out-of-range value normal, so callers can fall back to rule-based wording.
+ */
+export function isExplanationConsistentWithSeverity(text, severity) {
+  const body = String(text || '');
+  if (!body.trim()) return false;
+  if (severity === 'danger' || severity === 'warn') {
+    return OUT_OF_RANGE_WORDS.test(body) && !IN_RANGE_CLAIMS.test(body);
+  }
+  return !OUT_OF_RANGE_CLAIMS.test(body);
+}
