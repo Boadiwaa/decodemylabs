@@ -31,7 +31,11 @@ class LiteRTEngine {
 
       val engineConfig = EngineConfig(
         modelPath = normalizedModelPath,
-        backend = Backend.CPU,
+        backend = Backend.CPU(),
+        // Without a vision backend the engine segfaults on image input.
+        // Images (including rasterized PDF pages) are sent one per message.
+        visionBackend = Backend.CPU(),
+        maxNumImages = 1,
       )
       val activeEngine = Engine(engineConfig)
       activeEngine.initialize()
@@ -176,7 +180,7 @@ class LiteRTEngine {
   }
 
   private fun extractText(message: Message): String {
-    val text = message.contents
+    val text = message.contents.contents
       .mapNotNull { content ->
         when (content) {
           is Content.Text -> content.text.trim()

@@ -20,14 +20,18 @@ android {
 
   kotlinOptions {
     jvmTarget = "17"
+    // litertlm-android 0.10.x is compiled with Kotlin 2.2; Expo SDK 54 builds with 2.1.20.
+    // Scoped to this module only. Remove once the app's Kotlin version is >= 2.2.
+    freeCompilerArgs += ["-Xskip-metadata-version-check"]
   }
 }
 
 dependencies {
   implementation project(':expo-modules-core')
   implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${safeExtGet('kotlinVersion', '1.9.25')}"
-  // 0.9+ jars currently require newer Kotlin metadata than Expo SDK 54 toolchains can read.
-  implementation 'com.google.ai.edge.litertlm:litertlm-android:0.8.0'
+  // 0.10.1+ is the first runtime that can load Gemma 4 .litertlm files (format 1.5.0);
+  // 0.8.0 aborts natively while parsing them.
+  implementation 'com.google.ai.edge.litertlm:litertlm-android:0.10.2'
 }
 
 def safeExtGet(prop, fallback) {

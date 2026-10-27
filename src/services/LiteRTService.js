@@ -31,7 +31,7 @@ const NATIVE_RESOLVE_RETRY_MS = 100;
 const INIT_MARKER_KEY = '@talkinglabs/litert_init_in_progress';
 // Bump when the litertlm-android dependency changes so a previously crashing
 // model gets one fresh attempt on the new runtime.
-const LITERT_RUNTIME_VERSION = '0.8.0';
+const LITERT_RUNTIME_VERSION = '0.10.2';
 
 function resolveNativeModule() {
   try {
