@@ -43,7 +43,9 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - reference_ranges.js - Reference ranges and severity/deviation logic
 - mockData.js - Mock/demo patients, labs, alerts, and explanations
 - types.js - JSDoc type definitions
-- lab_interpretation.prompt.md - Prompt template content
+- prompts/labInterpretation.js, prompts/labExtraction.js - Prompt templates imported by the agent and parser
+- lab_interpretation.prompt.md - Original prompt write-up (reference only, not loaded at runtime)
+- constants/inference.js - Provider and runtime selection from EXPO_PUBLIC_ env vars
 
 ### State and Context
 - AuthContext.js - Session, onboarding, and profile overlay behavior
@@ -63,7 +65,10 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 
 ### Services
 - LabReportParser.js - Image/OCR parsing pipeline and structured extraction
-- LlamaService.js - llama.rn wrapper for text and multimodal completion
+- LlamaService.js - Inference entry point; routes to llama.rn, LiteRT, or the remote provider
+- LiteRTService.js - Android LiteRT-LM adapter (Gemma 4) with a crash-loop guard
+- RemoteGemmaService.js - Optional hosted Gemma API client
+- PIIRedactionService.js - Image redaction gate before remote upload
 - PatientStorage.js - Persistent storage API
 - AkanTTSService.js - Akan TTS support
 - ModelSetup.js - Model setup utilities
@@ -77,7 +82,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - DemographicsScreen.js - Demographics onboarding
 - MedicalHistoryScreen.js - Chronic condition onboarding
 - DrugHistoryScreen.js - Medication onboarding
-- PatientDetailScreen.js - Legacy detail screen still present in navigation
+- PatientDetailScreen.js - Legacy detail screen; registered in navigation but not linked, and the only screen that runs LabInterpretationAgent
 
 ### Components
 - TrendChart.js - Trend chart UI
@@ -85,8 +90,13 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - AIInsightCard.js - Insight and confidence presentation
 - ModelStatusBar.js - Model readiness bar
 - Toast.js - Toast feedback
-- InteractiveReport.js - Legacy animated report component, not the primary report route
-- ModeToggle.js - Deprecated placeholder, clinician mode removed
+
+### Native Modules
+- modules/expo-ocr - On-device OCR (Apple Vision / ML Kit)
+- modules/expo-litertlm - Android LiteRT-LM bridge (litertlm-android 0.10.2); iOS is a stub
+
+### Tests
+- __tests__/ - Jest unit tests for reference ranges, rules, personalization, parser regex, and password hashing. Run with npm test.
 
 ### Hooks
 - useUserLabData.js - Real-data and mock-data bridge for labs, alerts, trends, and report sessions
