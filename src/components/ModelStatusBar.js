@@ -15,6 +15,21 @@ import Typography from '../constants/typography';
 export default function ModelStatusBar({ compact = false, onRetry }) {
   const { modelStatus, modelError, isModelLoading, isModelReady, initializeModel } = useModel();
 
+  const errorMessage = (() => {
+    if (!modelError) return 'AI model unavailable — using rule-based analysis';
+    const lower = modelError.toLowerCase();
+    if (lower.includes('emulator')) {
+      return 'AI model disabled on emulator — using rule-based analysis';
+    }
+    if (lower.includes('ram') || lower.includes('memory')) {
+      return 'Device memory is too low for local AI model loading';
+    }
+    if (lower.includes('cpu architecture')) {
+      return 'Device architecture is unsupported for local AI loading';
+    }
+    return 'AI model unavailable — using rule-based analysis';
+  })();
+
   // Don't show anything when idle (model not attempted yet)
   if (modelStatus === 'idle') return null;
 
@@ -51,7 +66,7 @@ export default function ModelStatusBar({ compact = false, onRetry }) {
       <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.errorBar}>
         <View style={styles.errorContent}>
           <Ionicons name="cloud-offline-outline" size={14} color={Colors.warn} />
-          <Text style={styles.errorText}>AI model unavailable — using rule-based analysis</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
         </View>
         <TouchableOpacity
           onPress={handleRetry}

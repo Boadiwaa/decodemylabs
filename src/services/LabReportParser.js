@@ -5,14 +5,19 @@
  * via the custom expo-ocr module, then parses the extracted text with
  * MedGemma or regex fallback.
  *
- * For PDFs: PDFs cannot be read as plain text currently, 
- * to be implemented soon — manual entry is offered.
+ * For PDFs: sends the PDF directly to the model for extraction, then falls
+ * back to a text-extraction + model parse path when needed.
  *
  * Returns an array of ParsedLabResult objects that can be stored and displayed.
  */
 
+import * as FileSystem from 'expo-file-system/legacy';
 import llamaService from './LlamaService';
 import { recognizeText } from '../../modules/expo-ocr/src/index';
+import {
+  redactLabImageForRemoteInference,
+  sanitizeOcrTextForRemoteInference,
+} from './PIIRedactionService';
 import { REFERENCE_RANGES, classifySeverity } from '../domain/reference_ranges';
 
 /**
@@ -40,6 +45,12 @@ CRITICAL — TABULAR ALIGNMENT: Lab reports are formatted as tables. Each row co
 
 For EACH test found, output a JSON object on its own line:
 {"test_name": "...", "result_value": "42.5", "unit": "...", "normal_range": "...", "date": "..."}
+
+Examples:
+{"test_name": "Creatinine", "result_value": "66.1", "unit": "µmol/L", "normal_range": "45-84 µmol/L", "date": "2023-01-01"},
+{"test_name": "eGFR_Calculated (CKD-EPI 2021)", "result_value": ">90", "unit": "mL/min/1.73m²", "normal_range": ">=90 mL/min/1.73m²", "date": "2023-01-01"},
+{"test_name": "Sodium", "result_value": "142.6", "unit": "mmol/L", "normal_range": "136-146 mmol/L", "date": "2023-01-01"},
+
 
 Rules:
 - test_name: Use these standard names EXACTLY:
@@ -151,6 +162,7 @@ const TEST_PATTERNS = [
   { pattern: /\bpotassium\b|\bk\s*\+/i, name: 'Potassium', unit: 'mmol/L', range: '3.5-5.1 mmol/L' },
   { pattern: /\bchloride\b|\bcl\b/i, name: 'Chloride', unit: 'mmol/L', range: '101-109 mmol/L' },
   { pattern: /\bcalcium\b|\bca\s*\+?\+?(?!\s*nce)/i, name: 'Calcium', unit: 'mmol/L', range: '2.1-2.6 mmol/L' },
+  { pattern: /^(?:\s*(?:mg|mag)\s*[:=]?)|\bmagnesium\b|\bserum\s*mag(?:nesium)?\b/i, name: 'Magnesium', unit: 'mg/dL', range: '1.9-2.5 mg/dL' },
   // Hematology
   { pattern: /hemoglobin(?!\s*a1c)|\bhgb\b|\bhb\b(?!\s*a)/i, name: 'Hemoglobin', unit: 'g/dL', range: '12-17.5 g/dL' },
   { pattern: /\bwbc\b|white\s*blood\s*cell|leucocyte/i, name: 'WBC', unit: '×10³/µL', range: '4.5-11.0 ×10³/µL' },
@@ -180,6 +192,12 @@ CRITICAL — TABULAR ALIGNMENT: Lab reports are formatted as tables. Each row co
 For EACH test found, output a JSON object on its own line:
 {"test_name": "...", "result_value": "42.5", "unit": "...", "normal_range": "...", "date": "..."}
 
+Examples:
+{"test_name": "Creatinine", "result_value": "66.1", "unit": "µmol/L", "normal_range": "45-84 µmol/L", "date": "2023-01-01"},
+{"test_name": "eGFR_Calculated (CKD-EPI 2021)", "result_value": ">90", "unit": "mL/min/1.73m²", "normal_range": ">=90 mL/min/1.73m²", "date": "2023-01-01"},
+{"test_name": "Sodium", "result_value": "142.6", "unit": "mmol/L", "normal_range": "136-146 mmol/L", "date": "2023-01-01"},
+
+
 Rules:
 - test_name: Use these standard names EXACTLY:
   Liver: "ALT", "AST", "ALP", "GGT", "Bilirubin", "Direct Bilirubin", "Indirect Bilirubin", "Albumin", "Globulin", "Total Protein"
@@ -197,6 +215,99 @@ CRITICAL ALIASES:
 - Urea = BUN
 
 Output ONLY JSON objects, one per line. No other text.`;
+
+/** System prompt for direct PDF-based lab extraction */
+const PDF_EXTRACTION_PROMPT = `You are a precise medical lab report parser. You are analyzing a PDF of a clinical lab report.
+
+CRITICAL — TABULAR ALIGNMENT: Lab reports are formatted as tables. Each row contains ONE test and ONE result. You MUST:
+1. Read each row independently — do NOT carry values across rows.
+2. The numeric value for a test is ONLY the number on the SAME row as the test name.
+3. Double-check: ALT (SGPT) value comes from the ALT/SGPT row ONLY.
+4. Double-check: GGT value comes from the GGT row ONLY.
+5. Preserve the EXACT unit from the report — do NOT convert between units.
+
+For EACH test found, output a JSON object on its own line:
+{"test_name": "...", "result_value": "42.5", "unit": "...", "normal_range": "...", "date": "..."}
+
+Examples:
+{"test_name": "Creatinine", "result_value": "66.1", "unit": "µmol/L", "normal_range": "45-84 µmol/L", "date": "2023-01-01"},
+{"test_name": "eGFR_Calculated (CKD-EPI 2021)", "result_value": ">90", "unit": "mL/min/1.73m²", "normal_range": ">=90 mL/min/1.73m²", "date": "2023-01-01"},
+{"test_name": "Sodium", "result_value": "142.6", "unit": "mmol/L", "normal_range": "136-146 mmol/L", "date": "2023-01-01"},
+
+Rules:
+- test_name: Use these standard names EXACTLY:
+  Liver: "ALT", "AST", "ALP", "GGT", "Bilirubin", "Direct Bilirubin", "Indirect Bilirubin", "Albumin", "Globulin", "Total Protein"
+  Kidney: "Creatinine", "BUN", "Sodium", "Potassium", "Chloride", "Calcium", "eGFR"
+  Blood: "Hemoglobin", "WBC", "RBC", "Platelets"
+  Metabolic: "Glucose", "HbA1c", "Cholesterol", "LDL", "HDL", "Triglycerides", "TSH", "Magnesium"
+- result_value: ONLY the numeric value as a string (e.g. "42.5"). NO units here.
+- unit: The unit EXACTLY as shown on the report.
+- normal_range: The reference range EXACTLY as shown on the report, including unit.
+- date: Report date as YYYY-MM-DD, or "unknown".
+
+Output ONLY JSON objects, one per line. No other text.`;
+
+function normalizeFileUri(uri) {
+  if (!uri) return uri;
+  if (uri.startsWith('file://') || uri.startsWith('data:')) return uri;
+  if (uri.startsWith('/')) return `file://${uri}`;
+  return uri;
+}
+
+function isLikelyClinicalLine(line) {
+  if (!line) return false;
+  const text = line.trim();
+  if (!text) return false;
+
+  const hasNumber = /\d/.test(text);
+  const hasLabKeyword = /(cholesterol|hba1c|glucose|creatinine|urea|bun|sodium|potassium|chloride|calcium|magnesium|hemoglobin|wbc|rbc|platelet|alt|ast|alp|ggt|bilirubin|albumin|globulin|protein|tsh|ldl|hdl|triglyceride|egfr)/i.test(text);
+
+  return hasLabKeyword || (hasNumber && text.length >= 5 && text.length <= 220);
+}
+
+/**
+ * Extract likely readable text chunks from a PDF file payload.
+ * This keeps parsing automatic even when direct PDF multimodal extraction
+ * returns no structured output.
+ */
+async function extractLikelyTextFromPdf(pdfUri) {
+  try {
+    const normalizedUri = normalizeFileUri(pdfUri);
+    const raw = await FileSystem.readAsStringAsync(normalizedUri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    if (!raw) return '';
+
+    const cleaned = raw
+      .replace(/\r/g, '\n')
+      .replace(/\u0000/g, ' ')
+      .replace(/[^\x09\x0A\x0D\x20-\x7Eµ²³×·]/g, ' ');
+
+    const textObjects = [];
+    const textObjectPattern = /\(([^()]{2,240})\)\s*TJ?/g;
+    let match;
+    while ((match = textObjectPattern.exec(cleaned)) !== null) {
+      textObjects.push(match[1]);
+    }
+
+    const candidate = (textObjects.length > 0 ? textObjects.join('\n') : cleaned)
+      .replace(/[<>\[\]{}]/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    const lines = candidate
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter(isLikelyClinicalLine);
+
+    return lines.join('\n').slice(0, 14000);
+  } catch (e) {
+    console.warn('[LabReportParser] Could not extract fallback text from PDF:', e.message);
+    return '';
+  }
+}
 
 /**
  * Parse a lab report by sending the image DIRECTLY to MedGemma (multimodal).
@@ -222,13 +333,29 @@ export async function parseLabReportFromImage(imageUri, reportId, onProgress) {
   }
 
   try {
-    console.log('[LabReportParser] Sending image directly to MedGemma for analysis...');
+    let imageForModel = imageUri;
+
+    if (llamaService.provider === 'remote') {
+      // Privacy gate: fail closed if on-device redaction capability is unavailable.
+      console.log('[LabReportParser] Remote provider enabled — redacting PII before image upload...');
+      onProgress?.(0.2);
+
+      const redaction = await redactLabImageForRemoteInference(imageUri);
+      if (!redaction?.success || !redaction?.redactedUri) {
+        console.warn('[LabReportParser] PII redaction gate blocked remote upload:', redaction?.reason);
+        return null; // signal caller to continue with local OCR/manual fallback paths
+      }
+
+      imageForModel = redaction.redactedUri;
+    }
+
+    console.log('[LabReportParser] Sending image to model for analysis...');
     onProgress?.(0.3);
 
     const rawOutput = await llamaService.completeWithImage(
       IMAGE_EXTRACTION_PROMPT,
       'Extract all lab test results from this lab report image.',
-      imageUri,
+      imageForModel,
       {
         n_predict: 550,
         temperature: 0.1,   // Very low for structured extraction
@@ -257,6 +384,70 @@ export async function parseLabReportFromImage(imageUri, reportId, onProgress) {
 }
 
 /**
+ * Parse a lab report by sending the PDF directly to the model.
+ * Falls back to PDF text extraction + model parsing if the direct pass
+ * doesn't return structured JSON lines.
+ *
+ * @param {string} pdfUri
+ * @param {string} reportId
+ * @param {function} [onProgress]
+ * @returns {Promise<ParsedLabResult[]>}
+ */
+export async function parseLabReportFromPdf(pdfUri, reportId, onProgress) {
+  if (!pdfUri) {
+    console.warn('[LabReportParser] No PDF URI provided');
+    return [];
+  }
+
+  onProgress?.(0.1);
+
+  if (!llamaService.isReady) {
+    console.log('[LabReportParser] Model not ready for PDF parsing');
+    return [];
+  }
+
+  try {
+    onProgress?.(0.3);
+    console.log('[LabReportParser] Sending PDF directly to model for parsing...');
+
+    const rawOutput = await llamaService.completeWithPdf(
+      PDF_EXTRACTION_PROMPT,
+      'Extract all lab test results from this PDF lab report.',
+      pdfUri,
+      {
+        n_predict: 1800,
+        temperature: 0.1,
+      }
+    );
+
+    onProgress?.(0.65);
+    const directResults = parseModelExtractionOutput(rawOutput, reportId);
+    if (directResults.length > 0) {
+      console.log(`[LabReportParser] Direct PDF parsing extracted ${directResults.length} lab results`);
+      onProgress?.(1.0);
+      return directResults;
+    }
+
+    console.log('[LabReportParser] Direct PDF parsing returned no structured results');
+  } catch (e) {
+    console.warn('[LabReportParser] Direct PDF parsing failed:', e.message);
+  }
+
+  // Automatic fallback: extract likely PDF text and send to model parser.
+  onProgress?.(0.75);
+  const pdfText = await extractLikelyTextFromPdf(pdfUri);
+  if (pdfText && pdfText.trim().length > 20) {
+    console.log('[LabReportParser] Running model parse on extracted PDF text fallback');
+    return parseLabReportWithModel(pdfText, reportId, (progress) => {
+      onProgress?.(0.75 + progress * 0.25);
+    });
+  }
+
+  onProgress?.(1.0);
+  return [];
+}
+
+/**
  * Parse a lab report using MedGemma model.
  * @param {string} reportText - Extracted text from the report
  * @param {string} reportId   - ID of the source report for linking
@@ -271,6 +462,17 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
 
   // Extract report date from the text upfront for use as fallback
   const fallbackDate = extractReportDate(reportText);
+  const modelInputText = llamaService.provider === 'remote'
+    ? sanitizeOcrTextForRemoteInference(reportText)
+    : reportText;
+
+  if (!modelInputText || modelInputText.trim().length < 10) {
+    console.warn('[LabReportParser] Sanitized text too short for model parsing, using regex fallback');
+    onProgress?.(0.5);
+    const sanitizedFallbackResults = extractWithRegex(reportText, reportId);
+    onProgress?.(1.0);
+    return sanitizedFallbackResults;
+  }
 
   onProgress?.(0.1);
 
@@ -279,7 +481,7 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
     try {
       onProgress?.(0.3);
 
-      const userPrompt = `Extract lab results from this report:\n\n${reportText.slice(0, 3000)}`;
+      const userPrompt = `Extract lab results from this report:\n\n${modelInputText.slice(0, 3000)}`;
       const fullPrompt = llamaService.formatPrompt(EXTRACTION_PROMPT, userPrompt);
 
       const rawOutput = await llamaService.complete(fullPrompt, {
@@ -382,10 +584,10 @@ function buildResult(parsed, reportId, index, fallbackDate) {
   const testName = normalizeTestName(parsed.test_name);
   const unit = parsed.unit || '';
 
-  // Extract numeric value — strip any text/units from result_value
+  // Extract numeric value (and comparator like > or <) from result_value
   const rawValue = String(parsed.result_value).trim();
-  const numMatch = rawValue.match(/([\d]+\.?\d*)/);
-  const numericValue = numMatch ? parseFloat(numMatch[1]) : NaN;
+  const parsedValue = parseValueWithComparator(rawValue);
+  const numericValue = parsedValue?.numericValue ?? NaN;
 
   if (isNaN(numericValue)) return null;
 
@@ -408,7 +610,7 @@ function buildResult(parsed, reportId, index, fallbackDate) {
   return {
     id: `${reportId}_${Date.now()}_${index}`,
     test_name: testName,
-    result_value: `${numericValue} ${unit}`.trim(),
+    result_value: `${parsedValue?.comparator || ''}${numericValue} ${unit}`.trim(),
     numeric_value: numericValue,
     unit,
     normal_range: normalRange,
@@ -435,7 +637,8 @@ function extractWithRegex(text, reportId) {
   // Split text into lines — each OCR line typically corresponds to one row
   const lines = text.split(/\n/);
 
-  for (const line of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
     for (const tp of TEST_PATTERNS) {
       // Skip if already matched (prevents duplicate extraction)
       if (matchedNames.has(tp.name)) continue;
@@ -445,26 +648,42 @@ function extractWithRegex(text, reportId) {
 
       // Look for a numeric value on the SAME line, after the test name
       const afterName = line.slice(testMatch.index + testMatch[0].length);
-      // Match number, optionally followed by unit chars
-      const valueMatch = afterName.match(/[\s:=]*(-?\d+\.?\d*)\s*([\w/%µ³⁶×·/]*)/);
+      let parsedValue = extractValueFromText(afterName);
+      let rangeFromLine = extractRangeFromLine(line, testMatch.index + testMatch[0].length);
 
-      if (valueMatch) {
-        const numericValue = parseFloat(valueMatch[1]);
-        if (isNaN(numericValue)) continue;
+      // Some OCR formats wrap values/ranges to the next line. Allow one-line lookahead
+      // only if the next line is not itself another known test label.
+      if (!parsedValue && lineIndex + 1 < lines.length) {
+        const nextLine = lines[lineIndex + 1];
+        const nextLineHasTestLabel = TEST_PATTERNS.some((candidate) => candidate.pattern.test(nextLine));
 
-        // Use unit from text if present; fall back to pattern default
-        const extractedUnit = valueMatch[2]?.trim();
-        const unit = extractedUnit && extractedUnit.length > 0 ? extractedUnit : tp.unit;
+        if (!nextLineHasTestLabel) {
+          const nextValue = extractValueFromText(nextLine);
+          const nextRange = extractRangeFromLine(nextLine, 0);
 
-        // Try to extract the reference range from the same line
-        const rangeFromLine = extractRangeFromLine(line, testMatch.index + testMatch[0].length);
+          // Guard against accidental capture from unrelated metadata lines.
+          if (nextValue && (nextValue.unitToken || nextRange)) {
+            parsedValue = nextValue;
+            if (!rangeFromLine) rangeFromLine = nextRange;
+          }
+        }
+      }
+
+      if (parsedValue) {
+        const comparator = parsedValue.comparator;
+        const numericValue = parsedValue.numericValue;
+
+        // Use unit from text when valid; ignore flag markers like H/L.
+        const extractedUnit = parsedValue.unitToken;
+        const unitFromRange = extractUnitFromRange(rangeFromLine);
+        const unit = extractedUnit || unitFromRange || tp.unit;
         const normalRange = rangeFromLine || getDefaultRange(tp.name, unit);
 
         matchedNames.add(tp.name);
         results.push({
           id: `${reportId}_${Date.now()}_${results.length}`,
           test_name: tp.name,
-          result_value: `${numericValue} ${unit}`.trim(),
+          result_value: `${comparator}${numericValue} ${unit}`.trim(),
           numeric_value: numericValue,
           unit,
           normal_range: normalRange,
@@ -477,6 +696,63 @@ function extractWithRegex(text, reportId) {
   }
 
   return results;
+}
+
+function parseValueWithComparator(rawValue) {
+  if (!rawValue) return null;
+
+  const normalized = String(rawValue).replace(/,/g, '');
+  const match = normalized.match(/([<>]=?)?\s*(-?\d+\.?\d*)/);
+  if (!match) return null;
+
+  return {
+    comparator: (match[1] || '').trim(),
+    numericValue: parseFloat(match[2]),
+  };
+}
+
+function extractValueFromText(textFragment) {
+  if (!textFragment) return null;
+
+  const normalized = stripInlineMetadata(String(textFragment)).replace(/,/g, '');
+  const valueMatch = normalized.match(/[\s:=]*([<>]=?)?\s*(-?\d+\.?\d*)\s*([A-Za-z%µ³⁶²×·/0-9.]*)/);
+  if (!valueMatch) return null;
+
+  const numericValue = parseFloat(valueMatch[2]);
+  if (isNaN(numericValue)) return null;
+
+  return {
+    comparator: (valueMatch[1] || '').trim(),
+    numericValue,
+    unitToken: sanitizeExtractedUnit(valueMatch[3]),
+  };
+}
+
+function stripInlineMetadata(text) {
+  if (!text) return '';
+  // Remove parenthetical descriptors like (CKD-EPI 2021) so years are not parsed as results.
+  return text.replace(/\([^)]*\)/g, ' ');
+}
+
+function sanitizeExtractedUnit(unitToken) {
+  if (!unitToken) return '';
+
+  const cleaned = String(unitToken)
+    .trim()
+    .replace(/^[()]+|[()]+$/g, '')
+    .replace(/[,:;.]$/, '');
+  if (!cleaned) return '';
+  if (/^[HL]$/i.test(cleaned)) return '';
+  if (/^\d+(?:\.\d+)?$/.test(cleaned)) return '';
+
+  return cleaned;
+}
+
+function extractUnitFromRange(rangeText) {
+  if (!rangeText) return '';
+
+  const match = rangeText.match(/[A-Za-z%µ²³⁶×·/0-9.]+(?:\s*[A-Za-z0-9²³.]+)*$/);
+  return match ? match[0].trim() : '';
 }
 
 /**
@@ -492,14 +768,14 @@ function extractRangeFromLine(line, afterIndex) {
   const remainder = line.slice(afterIndex);
   // Match patterns like: "136 - 146 mmol/L", "0-35 U/L", "45 - 84 umol/L", ">= 90"
   const rangeMatch = remainder.match(
-    /(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\s*([\w/%µ·³⁶×/]+)/
+    /(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\s*([A-Za-z%µ²³⁶×·/0-9.]+(?:\s*[A-Za-z0-9²³.]+)*)/
   );
   if (rangeMatch) {
     return `${rangeMatch[1]}-${rangeMatch[2]} ${rangeMatch[3]}`;
   }
   // Match threshold patterns: ">60 mL/min", "<200 mg/dL", ">=90 mL/min"
   const threshMatch = remainder.match(
-    /([<>]=?\s*\d+\.?\d*)\s*([\w/%µ·³⁶×/]+)/
+    /([<>]=?\s*\d+\.?\d*)\s*([A-Za-z%µ²³⁶×·/0-9.]+(?:\s*[A-Za-z0-9²³.]+)*)/
   );
   if (threshMatch) {
     return `${threshMatch[1].replace(/\s/g, '')} ${threshMatch[2]}`;
@@ -579,6 +855,7 @@ export function createManualEntryPrompt(testName, value, unit) {
 
 export default {
   parseLabReportFromImage,
+  parseLabReportFromPdf,
   parseLabReportWithModel,
   recognizeTextFromImage,
   createManualEntryPrompt,

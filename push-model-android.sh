@@ -1,5 +1,5 @@
 #!/bin/bash
-# Push MedGemma GGUF model files to an Android device/emulator.
+# Push local model assets to an Android device/emulator.
 #
 # The app's LlamaService automatically discovers models in /data/local/tmp/
 # and migrates them to the app's private storage on first launch.
@@ -47,6 +47,7 @@ elif [[ -n "${1:-}" ]]; then
 fi
 
 MODELS=(
+  "models/gemma-4-E2B-it.litertlm"
   "models/medgemma-1.5-4b-it-Q3_K_M.gguf"
   "models/mmproj-F16.gguf"
 )

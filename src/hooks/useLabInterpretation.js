@@ -35,7 +35,7 @@ function mergeInterpretations(results) {
     patient_explanation: { en: '', fr: '', ak: '' },
     next_steps: [],
     recommended_actions: [],
-    disclaimer: results[0]?.output?.disclaimer || 'Please consult your healthcare provider for clinical decisions.',
+    disclaimer: results[0]?.output?.disclaimer || 'Consult a licensed healthcare provider.',
   };
 
   for (const r of results) {
@@ -213,7 +213,7 @@ export function useLabInterpretation(patientId) {
 
   /** Safety disclaimer */
   const disclaimer = interpretation?.output?.disclaimer
-    || 'Please consult your healthcare provider for clinical decisions.';
+    || 'Consult a licensed healthcare provider.';
 
   return {
     // Raw result

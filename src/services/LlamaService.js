@@ -1,17 +1,29 @@
 /**
  * LlamaService — singleton service for on-device LLM inference.
- * Wraps llama.rn to load the quantized MedGemma GGUF model
- * and run text completions for lab interpretation.
+ * Wraps local runtimes (llama.rn or LiteRT-LM) and remote provider calls.
+ *
+ * Local runtime selection:
+ * - Android: prefers LiteRT-LM when configured and available.
+ * - Fallback: llama.rn GGUF runtime.
  *
  * Usage:
  *   import llamaService from '../services/LlamaService';
- *   await llamaService.initialize('/path/to/model.gguf');
+ *   await llamaService.initialize('/path/to/model');
  *   const result = await llamaService.complete('Your prompt');
  */
 
 import { initLlama } from 'llama.rn';
+import * as Device from 'expo-device';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform, TurboModuleRegistry } from 'react-native';
+import {
+  LLAMA_MMPROJ_FILENAME,
+  LLAMA_MODEL_FILENAME,
+  LOCAL_INFERENCE_RUNTIME,
+  MODEL_PROVIDER,
+} from '../constants/inference';
+import liteRTService from './LiteRTService';
+import remoteGemmaService from './RemoteGemmaService';
 
 /**
  * Pre-flight check: is the llama.rn native module available?
@@ -20,9 +32,6 @@ import { Platform, TurboModuleRegistry } from 'react-native';
  * missing bridgeless-mode compat in older llama.rn releases).
  */
 const NATIVE_MODULE_AVAILABLE = TurboModuleRegistry.get('RNLlama') != null;
-
-const MODEL_FILENAME = 'medgemma-1.5-4b-it-Q3_K_M.gguf';
-const MMPROJ_FILENAME = 'mmproj-F16.gguf';
 
 /**
  * Remote model URLs for on-demand download.
@@ -72,6 +81,21 @@ const DEFAULT_MODEL_PARAMS = Platform.select({
   },
 });
 
+const BYTES_PER_GB = 1024 * 1024 * 1024;
+const MIN_ANDROID_MODEL_RAM_GB = Number(process.env.EXPO_PUBLIC_MIN_ANDROID_MODEL_RAM_GB || 5.5);
+const MIN_ANDROID_MODEL_RAM_BYTES =
+  Number.isFinite(MIN_ANDROID_MODEL_RAM_GB) && MIN_ANDROID_MODEL_RAM_GB > 0
+    ? MIN_ANDROID_MODEL_RAM_GB * BYTES_PER_GB
+    : 0;
+
+const ALLOW_EMULATOR_MODEL_LOAD =
+  String(process.env.EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD || '').toLowerCase() === 'true';
+
+const ALLOW_ANDROID_LLAMA_FALLBACK =
+  String(process.env.EXPO_PUBLIC_ALLOW_ANDROID_LLAMA_FALLBACK || '').toLowerCase() === 'true';
+
+const SUPPORTED_ANDROID_ARCH_HINTS = ['arm64', 'armeabi'];
+
 class LlamaService {
   constructor() {
     this._context = null;
@@ -91,14 +115,27 @@ class LlamaService {
 
     // Loading progress (0–1) emitted by initLlama
     this._loadProgress = 0;
+
+    // Inference provider mode: local llama.rn (default) or remote API.
+    this._provider = MODEL_PROVIDER === 'remote' ? 'remote' : 'local';
+
+    // Active local runtime when provider=local: llama | litertlm
+    this._localRuntime = 'llama';
   }
 
   // -- Status management --
 
   get status() { return this._status; }
   get error() { return this._error; }
+  get provider() { return this._provider; }
+  get localRuntime() { return this._localRuntime; }
   get isReady() { return this._status === 'ready'; }
-  get isMultimodalReady() { return this._multimodalReady; }
+  get isMultimodalReady() {
+    // Remote provider advertises multimodal readiness through overall readiness.
+    if (this._provider === 'remote') return this.isReady;
+    if (this._localRuntime === 'litertlm') return this.isReady;
+    return this._multimodalReady;
+  }
   get loadProgress() { return this._loadProgress; }
 
   /** Subscribe to status changes. Returns unsubscribe function. */
@@ -113,6 +150,61 @@ class LlamaService {
     this._listeners.forEach(fn => {
       try { fn({ status, error, progress: this._loadProgress }); } catch (e) { /* ignore */ }
     });
+  }
+
+  _hasSupportedAndroidArchitecture() {
+    const archs = Array.isArray(Device.supportedCpuArchitectures)
+      ? Device.supportedCpuArchitectures.filter(Boolean)
+      : [];
+
+    if (archs.length === 0) {
+      // Some environments don't expose arch metadata; avoid false negatives.
+      return true;
+    }
+
+    return archs.some((arch) => {
+      const lower = String(arch).toLowerCase();
+      return SUPPORTED_ANDROID_ARCH_HINTS.some((hint) => lower.includes(hint));
+    });
+  }
+
+  _enforceAndroidGuardrails() {
+    if (this._provider !== 'local' || Platform.OS !== 'android') {
+      return;
+    }
+
+    if (Device.isDevice === false && !ALLOW_EMULATOR_MODEL_LOAD) {
+      throw new Error(
+        'Local model loading is disabled on Android emulators to reduce native crash risk. ' +
+        'Use a physical Android device or set EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD=true to override.'
+      );
+    }
+
+    if (!this._hasSupportedAndroidArchitecture()) {
+      const archLabel = Array.isArray(Device.supportedCpuArchitectures)
+        ? Device.supportedCpuArchitectures.join(', ')
+        : 'unknown';
+
+      throw new Error(
+        `Unsupported Android CPU architecture for local model runtime (${archLabel}). ` +
+        'Use an ARM64 Android device for on-device AI.'
+      );
+    }
+
+    const shouldCheckMemory = LOCAL_INFERENCE_RUNTIME !== 'litertlm';
+    const totalMemory = Number(Device.totalMemory || 0);
+    if (
+      shouldCheckMemory &&
+      MIN_ANDROID_MODEL_RAM_BYTES > 0 &&
+      totalMemory > 0 &&
+      totalMemory < MIN_ANDROID_MODEL_RAM_BYTES
+    ) {
+      const availableGb = (totalMemory / BYTES_PER_GB).toFixed(1);
+      throw new Error(
+        `This device reports ${availableGb} GB RAM. Local GGUF loading is disabled below ` +
+        `${MIN_ANDROID_MODEL_RAM_GB} GB to reduce crash risk. Continue in rule-based mode or use remote provider.`
+      );
+    }
   }
 
   // -- Model discovery --
@@ -138,7 +230,7 @@ class LlamaService {
 
     // 2. Bundle directory (model included in native build via config plugin)
     if (FileSystem.bundleDirectory) {
-      const bundlePath = `${FileSystem.bundleDirectory}${MODEL_FILENAME}`;
+      const bundlePath = `${FileSystem.bundleDirectory}${LLAMA_MODEL_FILENAME}`;
       const bundleInfo = await FileSystem.getInfoAsync(bundlePath);
       if (bundleInfo.exists) {
         console.log('[LlamaService] Model found in app bundle');
@@ -147,7 +239,7 @@ class LlamaService {
     }
 
     // 3. Documents directory (manually copied or downloaded)
-    const docsPath = `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
+    const docsPath = `${FileSystem.documentDirectory}${LLAMA_MODEL_FILENAME}`;
     const docsInfo = await FileSystem.getInfoAsync(docsPath);
     if (docsInfo.exists) {
       console.log('[LlamaService] Model found in documents directory');
@@ -156,7 +248,7 @@ class LlamaService {
 
     // 4. Android: cache directory (alternative push location)
     if (Platform.OS === 'android' && FileSystem.cacheDirectory) {
-      const cachePath = `${FileSystem.cacheDirectory}${MODEL_FILENAME}`;
+      const cachePath = `${FileSystem.cacheDirectory}${LLAMA_MODEL_FILENAME}`;
       const cacheInfo = await FileSystem.getInfoAsync(cachePath);
       if (cacheInfo.exists) {
         console.log('[LlamaService] Model found in cache directory (Android)');
@@ -168,7 +260,7 @@ class LlamaService {
     //    ALWAYS migrate to documentDirectory because /data/local/tmp/ is not
     //    reliably readable from app processes due to Android sandboxing/SELinux.
     if (Platform.OS === 'android') {
-      const tmpRawPath = `/data/local/tmp/${MODEL_FILENAME}`;
+      const tmpRawPath = `/data/local/tmp/${LLAMA_MODEL_FILENAME}`;
       const tmpUri = `file://${tmpRawPath}`;
       try {
         const tmpInfo = await FileSystem.getInfoAsync(tmpUri);
@@ -191,7 +283,7 @@ class LlamaService {
 
     // 6. Android: external storage /sdcard/Download/ (dev push via adb)
     if (Platform.OS === 'android') {
-      const extPath = `file:///sdcard/Download/${MODEL_FILENAME}`;
+      const extPath = `file:///sdcard/Download/${LLAMA_MODEL_FILENAME}`;
       try {
         const extInfo = await FileSystem.getInfoAsync(extPath);
         if (extInfo.exists) {
@@ -206,12 +298,12 @@ class LlamaService {
     // 7. On-demand download (both platforms — last resort)
     if (MODEL_DOWNLOAD_URL) {
       console.log('[LlamaService] Model not found locally — attempting on-demand download…');
-      const downloaded = await this._downloadModel(MODEL_DOWNLOAD_URL, MODEL_FILENAME);
+      const downloaded = await this._downloadModel(MODEL_DOWNLOAD_URL, LLAMA_MODEL_FILENAME);
       if (downloaded) return downloaded;
     }
 
     console.warn(
-      `[LlamaService] Model "${MODEL_FILENAME}" not found anywhere.\n` +
+      `[LlamaService] Model "${LLAMA_MODEL_FILENAME}" not found anywhere.\n` +
       `  Searched: bundleDir, documentDir, cacheDir` +
       (Platform.OS === 'android' ? ', /data/local/tmp/, /sdcard/Download/' : '') + '\n' +
       (Platform.OS === 'android'
@@ -228,7 +320,7 @@ class LlamaService {
   async findMmprojPath() {
     // 1. Bundle directory
     if (FileSystem.bundleDirectory) {
-      const bundlePath = `${FileSystem.bundleDirectory}${MMPROJ_FILENAME}`;
+      const bundlePath = `${FileSystem.bundleDirectory}${LLAMA_MMPROJ_FILENAME}`;
       const info = await FileSystem.getInfoAsync(bundlePath);
       if (info.exists) {
         console.log('[LlamaService] mmproj found in app bundle');
@@ -237,7 +329,7 @@ class LlamaService {
     }
 
     // 2. Documents directory
-    const docsPath = `${FileSystem.documentDirectory}${MMPROJ_FILENAME}`;
+    const docsPath = `${FileSystem.documentDirectory}${LLAMA_MMPROJ_FILENAME}`;
     const docsInfo = await FileSystem.getInfoAsync(docsPath);
     if (docsInfo.exists) {
       console.log('[LlamaService] mmproj found in documents directory');
@@ -246,7 +338,7 @@ class LlamaService {
 
     // 3. Android: cache directory
     if (Platform.OS === 'android' && FileSystem.cacheDirectory) {
-      const cachePath = `${FileSystem.cacheDirectory}${MMPROJ_FILENAME}`;
+      const cachePath = `${FileSystem.cacheDirectory}${LLAMA_MMPROJ_FILENAME}`;
       const cacheInfo = await FileSystem.getInfoAsync(cachePath);
       if (cacheInfo.exists) {
         console.log('[LlamaService] mmproj found in cache directory (Android)');
@@ -256,7 +348,7 @@ class LlamaService {
 
     // 4. Android: /data/local/tmp/ (dev only — migrate to documents, same as model)
     if (Platform.OS === 'android') {
-      const tmpRawPath = `/data/local/tmp/${MMPROJ_FILENAME}`;
+      const tmpRawPath = `/data/local/tmp/${LLAMA_MMPROJ_FILENAME}`;
       const tmpUri = `file://${tmpRawPath}`;
       try {
         const tmpInfo = await FileSystem.getInfoAsync(tmpUri);
@@ -276,7 +368,7 @@ class LlamaService {
 
     // 5. Android: /sdcard/Download/
     if (Platform.OS === 'android') {
-      const extPath = `file:///sdcard/Download/${MMPROJ_FILENAME}`;
+      const extPath = `file:///sdcard/Download/${LLAMA_MMPROJ_FILENAME}`;
       try {
         const extInfo = await FileSystem.getInfoAsync(extPath);
         if (extInfo.exists) {
@@ -291,7 +383,7 @@ class LlamaService {
     // 6. On-demand download
     if (MMPROJ_DOWNLOAD_URL) {
       console.log('[LlamaService] mmproj not found locally — attempting on-demand download…');
-      const downloaded = await this._downloadModel(MMPROJ_DOWNLOAD_URL, MMPROJ_FILENAME);
+      const downloaded = await this._downloadModel(MMPROJ_DOWNLOAD_URL, LLAMA_MMPROJ_FILENAME);
       if (downloaded) return downloaded;
     }
 
@@ -403,6 +495,59 @@ class LlamaService {
     this._setStatus('loading');
 
     try {
+      this._enforceAndroidGuardrails();
+      this._localRuntime = 'llama';
+
+      if (this._provider === 'remote') {
+        await remoteGemmaService.initialize();
+        this._loadProgress = 1;
+        this._multimodalReady = true;
+        this._localRuntime = 'remote';
+        this._setStatus('ready');
+        console.log('[LlamaService] Remote Gemma provider initialized');
+        return;
+      }
+
+      const shouldTryLiteRT =
+        Platform.OS === 'android' &&
+        LOCAL_INFERENCE_RUNTIME !== 'llama';
+
+      if (shouldTryLiteRT) {
+        try {
+          const liteRTPath = await liteRTService.initialize(modelPath);
+          this._context = null;
+          this._modelPath = liteRTPath;
+          this._multimodalReady = true;
+          this._loadProgress = 1;
+          this._localRuntime = 'litertlm';
+          this._setStatus('ready');
+          console.log(`[LlamaService] LiteRT local runtime initialized (${liteRTPath})`);
+          return;
+        } catch (liteError) {
+          if (LOCAL_INFERENCE_RUNTIME === 'litertlm') {
+            throw liteError;
+          }
+
+          if (
+            Platform.OS === 'android' &&
+            LOCAL_INFERENCE_RUNTIME === 'auto' &&
+            !ALLOW_ANDROID_LLAMA_FALLBACK
+          ) {
+            const message = liteError?.message || 'LiteRT initialization failed';
+            throw new Error(
+              `LiteRT unavailable in auto mode (${message}). Android fallback to llama.rn is disabled by default ` +
+              'to reduce model-load crash risk. Continue in rule-based mode or set ' +
+              'EXPO_PUBLIC_ALLOW_ANDROID_LLAMA_FALLBACK=true to force fallback.'
+            );
+          }
+
+          console.warn(
+            '[LlamaService] LiteRT unavailable in auto mode, falling back to llama.rn:',
+            liteError.message
+          );
+        }
+      }
+
       // Pre-flight: check that the llama.rn native module is available.
       // On iOS simulator or if bridgeless-mode compat is broken, the
       // TurboModule may not be registered and initLlama() would crash
@@ -421,7 +566,7 @@ class LlamaService {
       const resolvedPath = await this.findModelPath(modelPath);
       if (!resolvedPath) {
         throw new Error(
-          `Model file "${MODEL_FILENAME}" not found. ` +
+          `Model file "${LLAMA_MODEL_FILENAME}" not found. ` +
           `Place it in the app documents directory or provide an explicit path.`
         );
       }
@@ -493,6 +638,7 @@ class LlamaService {
       this._loadProgress = 1;
 
       this._setStatus('ready');
+      this._localRuntime = 'llama';
       console.log('[LlamaService] Model loaded successfully');
 
       // Try to initialize multimodal (vision) support
@@ -551,6 +697,20 @@ class LlamaService {
    * @returns {Promise<string>} The model's generated text
    */
   async complete(prompt, params = {}, onToken = null) {
+    if (this._provider === 'remote') {
+      if (this._status !== 'ready') {
+        throw new Error('Remote provider not initialized. Call initialize() first.');
+      }
+      return remoteGemmaService.complete(prompt, params, onToken);
+    }
+
+    if (this._localRuntime === 'litertlm') {
+      if (this._status !== 'ready') {
+        throw new Error('LiteRT provider not initialized. Call initialize() first.');
+      }
+      return liteRTService.complete(prompt, params, onToken);
+    }
+
     if (!this._context || this._status !== 'ready') {
       throw new Error('Model not initialized. Call initialize() first.');
     }
@@ -659,6 +819,20 @@ class LlamaService {
    * @returns {Promise<string>} The model's generated text
    */
   async completeWithImage(systemPrompt, userText, imageUri, params = {}) {
+    if (this._provider === 'remote') {
+      if (this._status !== 'ready') {
+        throw new Error('Remote provider not initialized. Call initialize() first.');
+      }
+      return remoteGemmaService.completeWithImage(systemPrompt, userText, imageUri, params);
+    }
+
+    if (this._localRuntime === 'litertlm') {
+      if (this._status !== 'ready') {
+        throw new Error('LiteRT provider not initialized. Call initialize() first.');
+      }
+      return liteRTService.completeWithImage(systemPrompt, userText, imageUri, params);
+    }
+
     if (!this._context || this._status !== 'ready') {
       throw new Error('Model not initialized. Call initialize() first.');
     }
@@ -738,10 +912,57 @@ class LlamaService {
     }
   }
 
+  /**
+   * Run a completion with a PDF document.
+   * Remote provider sends PDF bytes directly as multimodal input.
+   * Local provider attempts direct multimodal parsing via the same completion path.
+   * @param {string} systemPrompt
+   * @param {string} userText
+   * @param {string} pdfUri
+   * @param {object} [params]
+   * @returns {Promise<string>}
+   */
+  async completeWithPdf(systemPrompt, userText, pdfUri, params = {}) {
+    if (this._provider === 'remote') {
+      if (this._status !== 'ready') {
+        throw new Error('Remote provider not initialized. Call initialize() first.');
+      }
+      return remoteGemmaService.completeWithPdf(systemPrompt, userText, pdfUri, params);
+    }
+
+    if (this._localRuntime === 'litertlm') {
+      if (this._status !== 'ready') {
+        throw new Error('LiteRT provider not initialized. Call initialize() first.');
+      }
+      return liteRTService.completeWithPdf(systemPrompt, userText, pdfUri, params);
+    }
+
+    // Best-effort local path: route to multimodal completion with the PDF URI.
+    // Some runtimes will reject non-image URLs; parser handles fallback paths.
+    return this.completeWithImage(systemPrompt, userText, pdfUri, params);
+  }
+
   // -- Cleanup --
 
   /** Release the model and free memory */
   async release() {
+    if (this._provider === 'remote') {
+      this._busy = false;
+      this._abortCurrent = null;
+      this._multimodalReady = false;
+      this._setStatus('idle');
+      return;
+    }
+
+    if (this._localRuntime === 'litertlm') {
+      await liteRTService.release();
+      this._localRuntime = 'llama';
+      this._multimodalReady = false;
+      this._modelPath = null;
+      this._setStatus('idle');
+      return;
+    }
+
     // Abort any in-flight completion first
     if (this._abortCurrent) {
       try { this._abortCurrent(); } catch (_) { /* ignore */ }
@@ -775,13 +996,27 @@ class LlamaService {
 
   /** Check if model exists on device (documents dir or external storage) */
   async isModelDownloaded() {
+    if (this._provider === 'remote') {
+      return remoteGemmaService.isConfigured;
+    }
+
+    if (Platform.OS === 'android' && LOCAL_INFERENCE_RUNTIME !== 'llama') {
+      const liteRTPath = await liteRTService.findModelPath();
+      if (liteRTPath) return true;
+      if (LOCAL_INFERENCE_RUNTIME === 'litertlm') return false;
+    }
+
     const path = await this.findModelPath();
     return path !== null;
   }
 
   /** Get the expected model path in documents directory */
   getDocumentsModelPath() {
-    return `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
+    if (Platform.OS === 'android' && LOCAL_INFERENCE_RUNTIME !== 'llama') {
+      return liteRTService.getDocumentsModelPath();
+    }
+
+    return `${FileSystem.documentDirectory}${LLAMA_MODEL_FILENAME}`;
   }
 }
 

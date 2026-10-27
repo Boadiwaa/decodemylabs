@@ -16,16 +16,16 @@ export function analyzeTrend(values) {
   };
 }
 
-export function assessUrgency(testName, currentValue, trendValues) {
-  const severity = classifySeverity(testName, currentValue);
+export function assessUrgency(testName, currentValue, trendValues, unit) {
+  const severity = classifySeverity(testName, currentValue, unit);
   const trend = analyzeTrend(trendValues);
-  const deviation = deviationFromNormal(testName, currentValue);
+  const deviation = deviationFromNormal(testName, currentValue, unit);
 
   if (severity === 'danger' && trend.direction === 'up' && trend.percentChange > 10) {
     return { urgent: true, reason: `${testName} critically elevated and rising (+${trend.percentChange}% over 3mo)` };
   }
   if (severity === 'danger') {
-    return { urgent: true, reason: `${testName} is ${deviation}% above normal` };
+    return { urgent: true, reason: `${testName} is ${deviation}% outside normal range` };
   }
   if (severity === 'warn' && trend.direction === 'up') {
     return { urgent: false, reason: `${testName} elevated and trending upward` };

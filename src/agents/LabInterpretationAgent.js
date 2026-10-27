@@ -12,6 +12,7 @@ import { createAgentOutput } from './types';
 import llamaService from '../services/LlamaService';
 import { classifySeverity, deviationFromNormal, REFERENCE_RANGES } from '../domain/reference_ranges';
 import { analyzeTrend, assessUrgency } from '../domain/interpretation_rules';
+import { buildPersonalizationInsights } from '../domain/personalization';
 import { getAge, formatDate } from '../utils/helpers';
 import { getFullPatientContext } from '../services/PatientStorage';
 
@@ -22,8 +23,9 @@ const SYSTEM_PROMPT = `You are MedGemma, a clinical laboratory results interpret
 
 Safety Rules:
 - You MUST NOT diagnose specific conditions.
-- You MUST NOT recommend specific medications by name.
-- You MUST always include "Please consult your healthcare provider" in recommendations.
+- You MUST NOT prescribe new medications or advise medication changes by name.
+- You MAY reference the patient's current medications when clinically relevant for context.
+- You MUST always include "Consult a licensed healthcare provider." in recommendations.
 - If data is insufficient, state uncertainty explicitly and set confidence below 0.5.
 - This is a prototype — all output must include a disclaimer that it is not a substitute for professional medical advice.`;
 
@@ -58,7 +60,7 @@ EXPLICATION:
 NKYERƐASEƐ:
 (The same explanation in Akan)
 
-End with: "Please consult your healthcare provider for clinical decisions."
+End with: "Consult a licensed healthcare provider."
 
 IMPORTANT: Use the section headers EXACTLY as shown — do not wrap them in ** or ## markers.`;
 
@@ -114,11 +116,12 @@ function formatPatientContext(ctx) {
  */
 function buildUserPrompt({ patient, lab, trend, mode, patientContext }) {
   const testName = lab.test_name;
-  const numericValue = parseFloat(lab.result_value);
+  const numericValue = getNumericLabValue(lab);
   const refRange = REFERENCE_RANGES[testName];
-  const severity = isNaN(numericValue) ? 'safe' : classifySeverity(testName, numericValue);
-  const deviation = isNaN(numericValue) ? 0 : deviationFromNormal(testName, numericValue);
+  const severity = isNaN(numericValue) ? 'safe' : classifySeverity(testName, numericValue, lab.unit);
+  const deviation = isNaN(numericValue) ? 0 : deviationFromNormal(testName, numericValue, lab.unit);
   const trendAnalysis = trend ? analyzeTrend(trend.values) : { direction: 'stable', percentChange: 0 };
+  const personalization = buildPersonalizationInsights({ lab, patientContext });
 
   const trendData = trend
     ? trend.values.map(v => `  ${v.date}: ${v.value} ${trend.unit}`).join('\n')
@@ -128,6 +131,9 @@ function buildUserPrompt({ patient, lab, trend, mode, patientContext }) {
 
   // Extra context from on-device storage (demographics, comorbidities, medications)
   const extraContext = formatPatientContext(patientContext);
+  const personalizationContext = personalization?.promptContext
+    ? `\n\n**Deterministic Personalization Context:**\n- ${personalization.promptContext}`
+    : '';
 
   return `Analyze the following lab result for a patient:
 
@@ -151,6 +157,8 @@ ${trendData}
 **Trend Analysis:**
 - Direction: ${trendAnalysis.direction}
 - Change: ${trendAnalysis.percentChange}%
+
+${personalizationContext}
 
 **Mode:** ${mode}
 
@@ -247,7 +255,7 @@ function extractFromText(text) {
     recommended_actions: [],
     patient_explanation: { en: '', fr: '', ak: '' },
     next_steps: [],
-    disclaimer: 'This is AI-generated guidance. Please consult your healthcare provider for clinical decisions.',
+    disclaimer: 'This is AI-generated guidance. Consult a licensed healthcare provider.',
   };
 
   const lines = text.split('\n');
@@ -362,19 +370,68 @@ function cleanParagraph(text) {
     .trim();
 }
 
+function getNumericLabValue(lab) {
+  if (typeof lab?.numeric_value === 'number' && !Number.isNaN(lab.numeric_value)) {
+    return lab.numeric_value;
+  }
+
+  const match = String(lab?.result_value || '').match(/-?\d+\.?\d*/);
+  return match ? Number.parseFloat(match[0]) : NaN;
+}
+
+function uniqueItems(items) {
+  return [...new Set((items || []).filter(Boolean))];
+}
+
+function appendSentence(base, sentence) {
+  if (!sentence) return base || '';
+  if (!base) return sentence;
+
+  const baseLower = base.toLowerCase();
+  const sentenceLower = sentence.toLowerCase();
+  if (baseLower.includes(sentenceLower)) return base;
+
+  return `${base.trim()} ${sentence.trim()}`.trim();
+}
+
+function applyPersonalization(output, personalization) {
+  if (!personalization) return output;
+
+  const nextSteps = uniqueItems([...(output.next_steps || []), ...(personalization.nextSteps || [])]);
+  const recommendedActions = uniqueItems([
+    ...(output.recommended_actions || []),
+    ...(personalization.recommendedActions || []),
+  ]);
+
+  const patientExplanation = output.patient_explanation || { en: '', fr: '', ak: '' };
+
+  return {
+    ...output,
+    summary: appendSentence(output.summary, personalization.summaryNote),
+    next_steps: nextSteps,
+    recommended_actions: recommendedActions,
+    patient_explanation: {
+      en: appendSentence(patientExplanation.en, personalization.patientNotes?.en),
+      fr: appendSentence(patientExplanation.fr, personalization.patientNotes?.fr),
+      ak: appendSentence(patientExplanation.ak, personalization.patientNotes?.ak),
+    },
+  };
+}
+
 /**
  * Build a rule-based fallback interpretation when LLM is unavailable.
  * Incorporates patient context (demographics, conditions, drugs) when available.
  */
 function buildFallbackInterpretation({ patient, lab, trend, mode, patientContext }) {
   const testName = lab.test_name;
-  const numericValue = parseFloat(lab.result_value);
-  const severity = isNaN(numericValue) ? 'safe' : classifySeverity(testName, numericValue);
-  const deviation = isNaN(numericValue) ? 0 : deviationFromNormal(testName, numericValue);
+  const numericValue = getNumericLabValue(lab);
+  const severity = isNaN(numericValue) ? 'safe' : classifySeverity(testName, numericValue, lab.unit);
+  const deviation = isNaN(numericValue) ? 0 : deviationFromNormal(testName, numericValue, lab.unit);
   const trendAnalysis = trend ? analyzeTrend(trend.values) : { direction: 'stable', percentChange: 0 };
   const urgency = trend
-    ? assessUrgency(testName, numericValue, trend.values)
+    ? assessUrgency(testName, numericValue, trend.values, lab.unit)
     : { urgent: false, reason: `${testName} assessment pending` };
+  const personalization = buildPersonalizationInsights({ lab, patientContext });
 
   const summaryParts = [];
   if (severity === 'danger') {
@@ -426,7 +483,7 @@ function buildFallbackInterpretation({ patient, lab, trend, mode, patientContext
     ? ` Some medications can affect lab values, so mention your current medicines to your doctor.`
     : '';
 
-  return {
+  const fallback = {
     summary: summaryParts.join(' '),
     severity,
     trend_direction: trendAnalysis.direction,
@@ -438,14 +495,16 @@ function buildFallbackInterpretation({ patient, lab, trend, mode, patientContext
       'Consider lifestyle modifications',
     ],
     patient_explanation: {
-      en: `Your ${testName} result is ${lab.result_value}. The normal range is ${lab.normal_range}. ${severity !== 'safe' ? 'This is outside the normal range, so it is important to talk with your doctor.' : 'This is within normal range — keep up the good work!'}${conditionNote}${medNote} Please consult your healthcare provider for personalized advice.`,
-      fr: `Votre résultat de ${testName} est ${lab.result_value}. La plage normale est ${lab.normal_range}. ${severity !== 'safe' ? 'Ce résultat est en dehors de la plage normale. Veuillez consulter votre médecin.' : 'Ce résultat est normal. Continuez ainsi!'}${conditionNote ? ' Compte tenu de vos antécédents médicaux, votre médecin pourrait vouloir examiner cela en contexte.' : ''}${medNote ? ' Certains médicaments peuvent affecter les résultats. Mentionnez vos médicaments actuels à votre médecin.' : ''} Consultez votre professionnel de santé.`,
-      ak: `Wo ${testName} result yɛ ${lab.result_value}. Normal range no yɛ ${lab.normal_range}. ${severity !== 'safe' ? 'Eyi wɔ normal range no akyi. Kɔ wo dɔkota nkyɛn.' : 'Eyi yɛ normal. Toa so saa ara!'}${conditionNote ? ' Wo yareɛ a ɛwɔ hɔ no nti, wo dɔkota bɛhwɛ eyi mu yie.' : ''}${medNote ? ' Nnuro bi tumi sesa lab results. Ka wo nnuro ho asɛm kyerɛ wo dɔkota.' : ''} Kɔ wo dɔkota nkyɛn na ɔmma wo afotu.`,
+      en: `Your ${testName} result is ${lab.result_value}. The normal range is ${lab.normal_range}. ${severity !== 'safe' ? 'This is outside the normal range, so it is important to talk with your doctor.' : 'This is within normal range — keep up the good work!'}${conditionNote}${medNote} Consult a licensed healthcare provider.`,
+      fr: `Votre resultat de ${testName} est ${lab.result_value}. La plage normale est ${lab.normal_range}. ${severity !== 'safe' ? 'Ce resultat est en dehors de la plage normale. Veuillez consulter votre medecin.' : 'Ce resultat est normal. Continuez ainsi!'}${conditionNote ? ' Compte tenu de vos antecedents medicaux, votre medecin pourrait vouloir examiner cela en contexte.' : ''}${medNote ? ' Certains medicaments peuvent affecter les resultats. Mentionnez vos medicaments actuels a votre medecin.' : ''} Consultez un professionnel de sante agree.`,
+      ak: `Wo ${testName} result ye ${lab.result_value}. Normal range no ye ${lab.normal_range}. ${severity !== 'safe' ? 'Eyi wo normal range no akyi. Ka ho asem kyer3 wo doctor.' : 'Eyi ye normal. Toa so saa ara!'}${conditionNote ? ' Wo yaree a ewo ho no nti, wo doctor b3hw3 mu yie.' : ''}${medNote ? ' Nnuro bi tumi sesa lab results. Ka wo nnuro ho asem kyer3 wo doctor.' : ''} Consult a licensed healthcare provider.`,
     },
     next_steps: nextSteps,
     confidence: 0.6,
-    disclaimer: 'Rule-based analysis — not AI-generated. Please consult your healthcare provider for clinical decisions.',
+    disclaimer: 'Rule-based analysis — not AI-generated. Consult a licensed healthcare provider.',
   };
+
+  return applyPersonalization(fallback, personalization);
 }
 
 /**
@@ -481,10 +540,12 @@ export class LabInterpretationAgent {
       }
     }
 
+    const personalization = buildPersonalizationInsights({ lab, patientContext });
+
     // If model is not ready, use fallback (still includes patient context)
     if (!llamaService.isReady) {
       console.log('[LabInterpretationAgent] Model not ready, using rule-based fallback');
-      const fallback = buildFallbackInterpretation({ patient, lab, trend, mode, patientContext });
+      const fallback = buildFallbackInterpretation({ patient, lab, trend, mode, patientContext, personalization });
       return createAgentOutput(AGENT_NAME, fallback, {
         confidence: fallback.confidence,
         reasoning: 'Rule-based fallback — LLM not available',
@@ -516,7 +577,7 @@ export class LabInterpretationAgent {
       if (!parsed) {
         // Truly empty output — fall back to rule-based
         console.warn('[LabInterpretationAgent] Empty model output, using fallback');
-        const fallback = buildFallbackInterpretation({ patient, lab, trend, mode, patientContext });
+        const fallback = buildFallbackInterpretation({ patient, lab, trend, mode, patientContext, personalization });
         return createAgentOutput(AGENT_NAME, fallback, {
           confidence: fallback.confidence,
           reasoning: 'Model produced no output. Showing rule-based fallback.',
@@ -528,8 +589,8 @@ export class LabInterpretationAgent {
       }
 
       // Validate severity against domain rules
-      const numericValue = parseFloat(lab.result_value);
-      const domainSeverity = isNaN(numericValue) ? 'safe' : classifySeverity(lab.test_name, numericValue);
+      const numericValue = getNumericLabValue(lab);
+      const domainSeverity = isNaN(numericValue) ? 'safe' : classifySeverity(lab.test_name, numericValue, lab.unit);
       if (parsed.severity && parsed.severity !== domainSeverity) {
         console.warn(`[LabInterpretationAgent] Model severity "${parsed.severity}" differs from domain rules "${domainSeverity}". Using domain rules.`);
         parsed.severity = domainSeverity;
@@ -537,17 +598,19 @@ export class LabInterpretationAgent {
 
       // Ensure safety disclaimer
       if (!parsed.disclaimer) {
-        parsed.disclaimer = 'This is AI-generated guidance. Please consult your healthcare provider for clinical decisions.';
+        parsed.disclaimer = 'This is AI-generated guidance. Consult a licensed healthcare provider.';
       }
 
-      return createAgentOutput(AGENT_NAME, parsed, {
-        confidence: parsed.confidence || 0.8,
+      const personalizedParsed = applyPersonalization(parsed, personalization);
+
+      return createAgentOutput(AGENT_NAME, personalizedParsed, {
+        confidence: personalizedParsed.confidence || 0.8,
         reasoning: `MedGemma on-device inference for ${lab.test_name}`,
         warnings: ['Prototype output — not for clinical use'],
       });
     } catch (error) {
       console.error('[LabInterpretationAgent] Inference error:', error);
-      const fallback = buildFallbackInterpretation({ patient, lab, trend, mode, patientContext });
+      const fallback = buildFallbackInterpretation({ patient, lab, trend, mode, patientContext, personalization });
       return createAgentOutput(AGENT_NAME, fallback, {
         confidence: fallback.confidence,
         reasoning: `Inference failed: ${error.message}. Using rule-based fallback.`,

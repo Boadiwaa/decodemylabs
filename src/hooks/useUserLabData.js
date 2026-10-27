@@ -25,6 +25,13 @@ import {
   reminders as mockReminders,
 } from '../data/mockData';
 
+function parseNumericValue(resultValue) {
+  const match = String(resultValue || '').match(/-?\d+\.?\d*/);
+  if (!match) return null;
+  const parsed = Number.parseFloat(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
  * Convert stored lab results into the shapes the app already expects:
  * labResults[], alerts[], trends[], patient record.
@@ -55,21 +62,27 @@ function buildDisplayData(storedResults, allResults, profile, user) {
   for (const [testName, result] of latestByTest) {
     const patientId = 'self';
     const severity = result.severity || 'safe';
+    const numericValue = Number.isFinite(result.numeric_value)
+      ? Number(result.numeric_value)
+      : parseNumericValue(result.result_value);
 
     labResults.push({
       id: idx,
       patient_id: patientId,
       test_name: testName,
       result_value: result.result_value,
+      numeric_value: numericValue,
+      unit: result.unit || '',
       normal_range: result.normal_range,
       date: result.date,
       severity,
+      source_report_id: result.source_report_id || null,
       explanation: '',
     });
 
     // Build alert
     const alertMessages = {
-      danger: `${testName} at ${result.result_value} is critically abnormal. Please consult your healthcare provider.`,
+        danger: `${testName} at ${result.result_value} is critically abnormal. Consult a licensed healthcare provider.`,
       warn: `${testName} at ${result.result_value} is outside the normal range. Worth keeping an eye on.`,
       safe: `${testName} at ${result.result_value} is within normal limits. Looking good!`,
     };

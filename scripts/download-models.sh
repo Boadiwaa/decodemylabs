@@ -2,7 +2,7 @@
 # =============================================================================
 # TalkingLabs — Model Download Script
 # =============================================================================
-# Downloads the quantized MedGemma weights needed to run on-device inference.
+# Downloads local model assets needed to run on-device inference.
 # Run this once after cloning the repo, before building the app.
 #
 # Usage:
@@ -11,7 +11,7 @@
 #
 # Requirements:
 #   - curl or wget
-#   - ~3 GB of free disk space
+#   - ~4 GB of free disk space
 #   - Hugging Face account with access to google/medgemma-4b-it-gguf
 #     (request access at https://huggingface.co/google/medgemma-4b-it-gguf)
 #
@@ -27,8 +27,14 @@ mkdir -p "$MODELS_DIR"
 # Model file definitions
 # ---------------------------------------------------------------------------
 
+# Primary Android runtime model: Gemma-4 LiteRT-LM package.
+# If LITERT_MODEL_URL is unset, this script will skip download and print
+# a manual-placement reminder (useful when model is distributed internally).
+LITERT_MODEL_FILE="gemma-4-E2B-it.litertlm"
+LITERT_MODEL_URL="${LITERT_MODEL_URL:-}"
+
 # Primary model: MedGemma 1.5B instruction-tuned, Q3_K_M quantization (~1.1 GB)
-# This is the text inference model used for lab interpretation and extraction.
+# This remains as fallback for llama.rn runtime.
 MODEL_FILE="medgemma-1.5-4b-it-Q3_K_M.gguf"
 MODEL_URL="https://huggingface.co/google/medgemma-4b-it-gguf/resolve/main/medgemma-1.5-4b-it-Q3_K_M.gguf"
 
@@ -74,6 +80,21 @@ download_file() {
   echo "✓ Downloaded $label"
 }
 
+download_if_url_set() {
+  local url="$1"
+  local dest="$2"
+  local label="$3"
+
+  if [ -z "$url" ]; then
+    echo ""
+    echo "⚠  Skipping $label: no URL configured."
+    echo "   Place $dest manually if needed for your runtime."
+    return 0
+  fi
+
+  download_file "$url" "$dest" "$label"
+}
+
 # ---------------------------------------------------------------------------
 # Hugging Face token check
 # ---------------------------------------------------------------------------
@@ -98,9 +119,10 @@ fi
 # ---------------------------------------------------------------------------
 
 echo "==================================================================="
-echo "  TalkingLabs — Downloading MedGemma model weights"
+echo "  TalkingLabs — Downloading local model assets"
 echo "==================================================================="
 
+download_if_url_set "$LITERT_MODEL_URL" "$MODELS_DIR/$LITERT_MODEL_FILE" "Gemma-4 LiteRT-LM model"
 download_file "$MODEL_URL" "$MODELS_DIR/$MODEL_FILE" "MedGemma text model"
 download_file "$MMPROJ_URL" "$MODELS_DIR/$MMPROJ_FILE" "Multimodal projection weights"
 
@@ -110,6 +132,7 @@ download_file "$MMPROJ_URL" "$MODELS_DIR/$MMPROJ_FILE" "Multimodal projection we
 
 MIN_MODEL_SIZE=$((500 * 1024 * 1024))   # 500 MB — model should be at least this
 MIN_MMPROJ_SIZE=$((100 * 1024 * 1024))  # 100 MB
+MIN_LITERT_SIZE=$((500 * 1024 * 1024))  # 500 MB
 
 check_size() {
   local file="$1"
@@ -129,6 +152,7 @@ check_size() {
 
 echo ""
 echo "--- Verifying downloads ---"
+check_size "$MODELS_DIR/$LITERT_MODEL_FILE" $MIN_LITERT_SIZE "Gemma-4 LiteRT-LM model"
 check_size "$MODELS_DIR/$MODEL_FILE" $MIN_MODEL_SIZE "MedGemma model"
 check_size "$MODELS_DIR/$MMPROJ_FILE" $MIN_MMPROJ_SIZE "Multimodal projection"
 

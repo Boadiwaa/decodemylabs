@@ -10,6 +10,8 @@ import { runOnJS } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import DashboardScreen from '../screens/DashboardScreen';
 import PatientDetailScreen from '../screens/PatientDetailScreen';
+import ReportScreen from '../screens/ReportScreen';
+import MetricDetailScreen from '../screens/MetricDetailScreen';
 import TrendsScreen from '../screens/TrendsScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import SecurityScreen from '../screens/SecurityScreen';
@@ -69,6 +71,8 @@ function HomeStackNavigator() {
     <SwipeTabWrapper tabName="Home">
       <HomeStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <HomeStack.Screen name="DashboardMain" component={DashboardScreen} />
+        <HomeStack.Screen name="Report" component={ReportScreen} />
+        <HomeStack.Screen name="MetricDetail" component={MetricDetailScreen} />
         <HomeStack.Screen name="PatientDetail" component={PatientDetailScreen} />
         <HomeStack.Screen name="LabUpload" component={LabUploadScreen} />
       </HomeStack.Navigator>
@@ -81,6 +85,8 @@ function TrendsStackNavigator() {
     <SwipeTabWrapper tabName="Trends">
       <TrendsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <TrendsStack.Screen name="TrendsMain" component={TrendsScreen} />
+        <TrendsStack.Screen name="Report" component={ReportScreen} />
+        <TrendsStack.Screen name="MetricDetail" component={MetricDetailScreen} />
         <TrendsStack.Screen name="PatientDetail" component={PatientDetailScreen} />
       </TrendsStack.Navigator>
     </SwipeTabWrapper>

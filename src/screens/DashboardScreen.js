@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Alert, InteractionManager } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,7 +52,13 @@ export default function DashboardScreen({ navigation }) {
 
   // Attempt to load MedGemma model on dashboard mount
   useEffect(() => {
-    initializeModel();
+    const interactionTask = InteractionManager.runAfterInteractions(() => {
+      initializeModel();
+    });
+
+    return () => {
+      interactionTask.cancel();
+    };
   }, [initializeModel]);
 
   // Refresh data every time the screen comes into focus (e.g. after uploading)
@@ -166,7 +172,7 @@ export default function DashboardScreen({ navigation }) {
                   patientAlerts={getAlerts(p.id)}
                   patientTrends={getTrends(p.id)}
                   index={i}
-                  onPress={(patient) => navigation.navigate('PatientDetail', { patientId: patient.id })}
+                  onPress={(patient) => navigation.navigate('Report', { patientId: patient.id })}
                 />
               ))
             ) : (
@@ -208,7 +214,7 @@ export default function DashboardScreen({ navigation }) {
                       accessibilityLabel={`View report from ${dateStr}`}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        navigation.navigate('PatientDetail', {
+                        navigation.navigate('Report', {
                           patientId: 'self',
                           reportId: session.reportId,
                         });

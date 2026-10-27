@@ -34,7 +34,7 @@ import {
   appendLabResults, deleteLabResultsByReport, deleteLabResultById,
 } from '../services/PatientStorage';
 import {
-  parseLabReportFromImage, parseLabReportWithModel, recognizeTextFromImage,
+  parseLabReportFromImage, parseLabReportFromPdf, parseLabReportWithModel, recognizeTextFromImage,
 } from '../services/LabReportParser';
 import { classifySeverity, REFERENCE_RANGES } from '../domain/reference_ranges';
 import Colors from '../constants/colors';
@@ -46,7 +46,7 @@ const { width } = Dimensions.get('window');
 const COMMON_TESTS = [
   'Cholesterol', 'HbA1c', 'Glucose', 'Creatinine', 'Hemoglobin',
   'WBC', 'RBC', 'Platelets', 'ALT', 'AST', 'ALP', 'GGT', 'TSH',
-  'Sodium', 'Potassium', 'Chloride', 'Calcium', 'BUN', 'Triglycerides',
+  'Sodium', 'Potassium', 'Chloride', 'Calcium', 'Magnesium', 'BUN', 'Triglycerides',
   'LDL', 'HDL', 'Blood Pressure', 'eGFR', 'Bilirubin',
   'Direct Bilirubin', 'Indirect Bilirubin',
   'Albumin', 'Globulin', 'Total Protein',
@@ -208,12 +208,30 @@ export default function LabUploadScreen({ navigation }) {
           await fallbackOcrPipeline(storedUri, report.id, type);
         }
       } else {
-        // PDFs: no vision support, go to manual entry
-        setProcessingMessage(
-          'PDF saved! Automatic reading is not supported for PDFs yet.\nPlease enter your lab values below.'
+        // PDFs: direct model parsing path
+        setProcessingMessage('Analyzing PDF with AI...');
+        progressAnim.value = withTiming(0.3, { duration: 500 });
+
+        const pdfResults = await parseLabReportFromPdf(
+          storedUri,
+          report.id,
+          (progress) => {
+            progressAnim.value = withTiming(0.3 + progress * 0.6, { duration: 300 });
+          }
         );
-        progressAnim.value = withTiming(1, { duration: 400 });
-        setShowManualEntry(true);
+
+        if (pdfResults && pdfResults.length > 0) {
+          setProcessingMessage(`Found ${pdfResults.length} lab result${pdfResults.length !== 1 ? 's' : ''} from your PDF!`);
+          progressAnim.value = withTiming(1, { duration: 300 });
+          setParsedResults(pdfResults);
+          await appendLabResults(user.id, pdfResults);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setShowManualEntry(true);
+        } else {
+          setProcessingMessage('Could not extract values automatically from this PDF. Please review and add manually below.');
+          progressAnim.value = withTiming(1, { duration: 400 });
+          setShowManualEntry(true);
+        }
       }
     } catch (e) {
       console.error('Save/process error:', e);
@@ -400,12 +418,20 @@ export default function LabUploadScreen({ navigation }) {
   };
 
   const handleDone = () => {
+    const reportIdToOpen = currentReportId;
+
     // Reset session state so the screen is fresh on back-navigation
     setParsedResults(null);
     setCurrentReportId(null);
     setProcessing(false);
     setShowManualEntry(false);
     setShowDatePicker(false);
+
+    if (reportIdToOpen) {
+      navigation.navigate('Report', { patientId: 'self', reportId: reportIdToOpen });
+      return;
+    }
+
     navigation.navigate('DashboardMain');
   };
 

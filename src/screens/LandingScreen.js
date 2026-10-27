@@ -74,8 +74,7 @@ export default function LandingScreen({ navigation }) {
             <Text style={styles.heroSubtitle}>
               TalkingLabs employs the best parts of AI to provide on-the-go
               lab interpretation that's accurate and actionable.{'\n'}
-              Track your labs easily without compromising on the privacy of your health data.{'\n'}
-              Because your labs are precious — and should be explained simply, too.
+              Understand and track your labs easily without compromising on the privacy of your health data.
             </Text>
           </Animated.View>
 

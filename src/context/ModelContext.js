@@ -22,9 +22,14 @@ export function ModelProvider({ children }) {
       setModelStatus(status);
       setModelError(error);
       if (status === 'loading') {
+        const isRemote = llamaService.provider === 'remote';
         const pct = Math.round((progress || 0) * 100);
         setLoadingPercent(pct);
-        setLoadingProgress(pct > 0 ? `Loading MedGemma model… ${pct}%` : 'Locating model file…');
+        setLoadingProgress(
+          pct > 0
+            ? (isRemote ? `Connecting to Gemma API… ${pct}%` : `Loading MedGemma model… ${pct}%`)
+            : (isRemote ? 'Checking Gemma API configuration…' : 'Locating model file…')
+        );
       }
       if (status === 'ready') { setLoadingProgress(''); setLoadingPercent(100); }
       if (status === 'error') { setLoadingProgress(''); setLoadingPercent(0); }
@@ -41,7 +46,11 @@ export function ModelProvider({ children }) {
     initAttempted.current = true;
 
     try {
-      setLoadingProgress('Locating model file…');
+      setLoadingProgress(
+        llamaService.provider === 'remote'
+          ? 'Checking Gemma API configuration…'
+          : 'Locating model file…'
+      );
       await llamaService.initialize(modelPath);
     } catch (error) {
       console.warn('[ModelContext] Model initialization failed:', error.message);

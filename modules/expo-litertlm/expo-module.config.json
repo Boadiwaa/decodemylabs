@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["ExpoLiteRTModule"],
+    "podspecPath": "ExpoLiteRT.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.litert.ExpoLiteRTModule"]
+  }
+}

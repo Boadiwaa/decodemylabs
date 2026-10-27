@@ -1,7 +1,7 @@
 /**
  * Expo Config Plugin — withModelAsset
  *
- * Adds the MedGemma GGUF model file to the app bundle.
+ * Adds model assets to native projects.
  *
  * iOS:  Adds the model to Xcode's "Copy Bundle Resources" build phase
  *       so it ships inside the .app bundle.
@@ -176,7 +176,7 @@ function withModelAssetAndroid(config, modelPath) {
       if (!gradleContent.includes(marker)) {
         const gradleTask = `
 ${marker}
-// (Optional) Push GGUF models to /data/local/tmp/ after installDebug.
+    // (Optional) Push local model assets to /data/local/tmp/ after installDebug.
 // Wrapped in try-catch so build never fails if adb/device isn't available.
 afterEvaluate {
     try {
@@ -191,8 +191,10 @@ afterEvaluate {
         tasks.matching { it.name =~ /^install.*Debug\$/ }.configureEach { installTask ->
             installTask.doLast {
                 try {
-                    modelDir.listFiles()?.findAll { it.name.endsWith('.gguf') }?.each { gguf ->
-                        def dest = "/data/local/tmp/\${gguf.name}"
+                  modelDir.listFiles()?.findAll { f ->
+                    f.name.endsWith('.gguf') || f.name.endsWith('.litertlm')
+                  }?.each { modelFile ->
+                    def dest = "/data/local/tmp/\${modelFile.name}"
                         def checkOut = new ByteArrayOutputStream()
                         def checkResult = exec {
                             commandLine adbExe, 'shell', 'stat', '-c', '%s', dest
@@ -201,13 +203,13 @@ afterEvaluate {
                             ignoreExitValue = true
                         }
                         def deviceSize = checkOut.toString().trim()
-                        if (checkResult.exitValue == 0 && deviceSize == gguf.length().toString()) {
-                            logger.lifecycle("[withModelAsset] \${gguf.name} already on device, skipping")
+                        if (checkResult.exitValue == 0 && deviceSize == modelFile.length().toString()) {
+                          logger.lifecycle("[withModelAsset] \${modelFile.name} already on device, skipping")
                             return
                         }
-                        logger.lifecycle("[withModelAsset] Pushing \${gguf.name} (\${(gguf.length() / 1048576).intValue()} MB)…")
+                        logger.lifecycle("[withModelAsset] Pushing \${modelFile.name} (\${(modelFile.length() / 1048576).intValue()} MB)…")
                         exec {
-                            commandLine adbExe, 'push', gguf.absolutePath, dest
+                          commandLine adbExe, 'push', modelFile.absolutePath, dest
                             ignoreExitValue = true
                         }
                     }

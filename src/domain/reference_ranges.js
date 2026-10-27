@@ -124,6 +124,24 @@ export const REFERENCE_RANGES = {
       'mmol/L': { normal: { min: 2.1, max: 2.6 }, elevated: { min: 2.6, max: 3.0 }, critical: { min: 3.0, max: Infinity } },
     },
   },
+  Magnesium: {
+    unit: 'mg/dL',
+    normal: { min: 1.9, max: 2.5 },
+    elevated: { min: 2.5, max: 3.1 },
+    critical: { min: 3.1, max: Infinity },
+    description: 'Serum Magnesium',
+    lowWarn: 1.7,
+    lowCritical: 1.2,
+    altUnits: {
+      'mmol/L': {
+        normal: { min: 0.78, max: 1.03 },
+        elevated: { min: 1.03, max: 1.3 },
+        critical: { min: 1.3, max: Infinity },
+        lowWarn: 0.7,
+        lowCritical: 0.5,
+      },
+    },
+  },
   AST: {
     unit: 'U/L',
     normal: { min: 0, max: 35 },
@@ -272,6 +290,21 @@ export const REFERENCE_RANGES = {
   },
 };
 
+function resolveThresholdsForUnit(range, unit) {
+  if (!range) return null;
+
+  if (unit && range.altUnits) {
+    const normalizedUnit = unit.trim().toLowerCase();
+    for (const [altUnit, altThresholds] of Object.entries(range.altUnits)) {
+      if (altUnit.toLowerCase() === normalizedUnit) {
+        return altThresholds;
+      }
+    }
+  }
+
+  return range;
+}
+
 /**
  * Classify severity. Supports both high and low abnormality.
  * @param {string} testName
@@ -284,16 +317,7 @@ export function classifySeverity(testName, value, unit) {
   if (!range) return 'safe';
 
   // Pick thresholds: if an alt-unit matches, use those thresholds
-  let thresholds = range;
-  if (unit && range.altUnits) {
-    const normUnit = unit.trim().toLowerCase();
-    for (const [altKey, altThresh] of Object.entries(range.altUnits)) {
-      if (altKey.toLowerCase() === normUnit) {
-        thresholds = altThresh;
-        break;
-      }
-    }
-  }
+  const thresholds = resolveThresholdsForUnit(range, unit);
 
   // Inverted scale (eGFR: lower is worse)
   if (range.invertedScale) {
@@ -318,8 +342,22 @@ export function classifySeverity(testName, value, unit) {
   return 'safe';
 }
 
-export function deviationFromNormal(testName, value) {
+export function deviationFromNormal(testName, value, unit) {
   const range = REFERENCE_RANGES[testName];
-  if (!range || value <= range.normal.max) return 0;
-  return ((value - range.normal.max) / range.normal.max * 100).toFixed(1);
+  const thresholds = resolveThresholdsForUnit(range, unit);
+  const normal = thresholds?.normal;
+
+  if (!normal) return 0;
+
+  if (value < normal.min) {
+    const denominator = normal.min > 0 ? normal.min : 1;
+    return ((normal.min - value) / denominator * 100).toFixed(1);
+  }
+
+  if (value > normal.max) {
+    const denominator = Number.isFinite(normal.max) && normal.max > 0 ? normal.max : 1;
+    return ((value - normal.max) / denominator * 100).toFixed(1);
+  }
+
+  return 0;
 }
