@@ -7,6 +7,7 @@
  * - It provides a stable JS interface matching existing LlamaService methods.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
@@ -23,6 +24,14 @@ const CANDIDATE_NATIVE_MODULES = [
 
 const NATIVE_RESOLVE_TIMEOUT_MS = 2500;
 const NATIVE_RESOLVE_RETRY_MS = 100;
+
+// Native model loading can abort the whole process (SIGABRT), which JS cannot
+// catch. A marker is written before the native init call and cleared after it
+// returns; if it survives to the next launch, that load crashed the app.
+const INIT_MARKER_KEY = '@talkinglabs/litert_init_in_progress';
+// Bump when the litertlm-android dependency changes so a previously crashing
+// model gets one fresh attempt on the new runtime.
+const LITERT_RUNTIME_VERSION = '0.8.0';
 
 function resolveNativeModule() {
   try {
@@ -262,20 +271,85 @@ class LiteRTService {
       throw new Error('LiteRT native module does not expose initialize/init.');
     }
 
+    const marker = await this._buildInitMarker(resolvedPath);
+    await this._assertNoPriorCrash(marker);
+    await this._writeInitMarker(marker);
+
     try {
       await initFn.call(this._nativeModule, { modelPath: rawPath });
     } catch (firstError) {
       try {
         await initFn.call(this._nativeModule, rawPath);
       } catch (secondError) {
+        await this.clearCrashMarker();
         const details = secondError?.message || firstError?.message || 'unknown initialization error';
         throw new Error(`LiteRT initialization failed: ${details}`);
       }
     }
 
+    await this.clearCrashMarker();
+
     this._ready = true;
     this._modelPath = resolvedPath;
     return resolvedPath;
+  }
+
+  // -- Crash guard --
+
+  async _buildInitMarker(resolvedPath) {
+    let modelSize = null;
+    try {
+      const info = await FileSystem.getInfoAsync(resolvedPath);
+      modelSize = info?.size ?? null;
+    } catch (_) {
+      // Size is only used to detect a replaced model file.
+    }
+    return { modelPath: resolvedPath, modelSize, runtimeVersion: LITERT_RUNTIME_VERSION };
+  }
+
+  async _assertNoPriorCrash(marker) {
+    let previous = null;
+    try {
+      const raw = await AsyncStorage.getItem(INIT_MARKER_KEY);
+      previous = raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return;
+    }
+    if (!previous) return;
+
+    const sameAttempt =
+      previous.modelPath === marker.modelPath &&
+      previous.modelSize === marker.modelSize &&
+      previous.runtimeVersion === marker.runtimeVersion;
+
+    if (sameAttempt) {
+      throw new Error(
+        'LiteRT model loading crashed the app last time, so it is skipped to keep the app usable. ' +
+        'Update the model or runtime, or clear the marker with liteRTService.clearCrashMarker().'
+      );
+    }
+
+    // Model or runtime changed since the crash: allow one fresh attempt.
+    await this.clearCrashMarker();
+  }
+
+  async _writeInitMarker(marker) {
+    try {
+      await AsyncStorage.setItem(
+        INIT_MARKER_KEY,
+        JSON.stringify({ ...marker, startedAt: new Date().toISOString() })
+      );
+    } catch (error) {
+      console.warn('[LiteRTService] Could not write init marker:', error.message);
+    }
+  }
+
+  async clearCrashMarker() {
+    try {
+      await AsyncStorage.removeItem(INIT_MARKER_KEY);
+    } catch (_) {
+      // Non-fatal: the next launch will simply re-check.
+    }
   }
 
   async complete(prompt, params = {}, onToken = null) {
