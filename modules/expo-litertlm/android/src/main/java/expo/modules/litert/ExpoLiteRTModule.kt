@@ -1,6 +1,5 @@
 package expo.modules.litert
 
-import android.content.Context
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -71,27 +70,6 @@ class ExpoLiteRTModule : Module() {
       }
     }
 
-    AsyncFunction("completeWithPdf") { payload: Map<String, Any?>, promise: Promise ->
-      runAsync(promise, "ERR_PDF") {
-        val parsed = parsePdfPayload(payload)
-        engine.completeWithPdf(getRequiredContext(), parsed.systemPrompt, parsed.userText, parsed.pdfUri, parsed.params)
-      }
-    }
-
-    AsyncFunction("inferDocument") { payload: Map<String, Any?>, promise: Promise ->
-      runAsync(promise, "ERR_PDF") {
-        val parsed = parsePdfPayload(payload)
-        engine.completeWithPdf(getRequiredContext(), parsed.systemPrompt, parsed.userText, parsed.pdfUri, parsed.params)
-      }
-    }
-
-    AsyncFunction("analyzeDocument") { payload: Map<String, Any?>, promise: Promise ->
-      runAsync(promise, "ERR_PDF") {
-        val parsed = parsePdfPayload(payload)
-        engine.completeWithPdf(getRequiredContext(), parsed.systemPrompt, parsed.userText, parsed.pdfUri, parsed.params)
-      }
-    }
-
     AsyncFunction("release") { promise: Promise ->
       runAsync(promise, "ERR_RELEASE") {
         engine.release()
@@ -113,12 +91,6 @@ class ExpoLiteRTModule : Module() {
       }
       executor.shutdownNow()
     }
-  }
-
-  private fun getRequiredContext(): Context {
-    return appContext.reactContext
-      ?: appContext.throwingActivity?.applicationContext
-      ?: throw IllegalStateException("Android application context is unavailable")
   }
 
   private fun runAsync(promise: Promise, code: String, block: () -> Any?) {
@@ -174,26 +146,6 @@ class ExpoLiteRTModule : Module() {
     )
   }
 
-  private fun parsePdfPayload(payload: Map<String, Any?>): PdfPayload {
-    val pdfUri = payload["pdfUri"] as? String
-      ?: throw IllegalArgumentException("pdfUri is required")
-
-    val prompt = payload["prompt"] as? String
-    val systemPrompt = payload["systemPrompt"] as? String ?: ""
-    val userText = payload["userText"] as? String ?: (prompt ?: "")
-
-    if (pdfUri.isBlank()) {
-      throw IllegalArgumentException("pdfUri cannot be blank")
-    }
-
-    return PdfPayload(
-      systemPrompt = systemPrompt,
-      userText = userText,
-      pdfUri = pdfUri,
-      params = parseParams(payload)
-    )
-  }
-
   private data class TextPayload(
     val prompt: String,
     val params: Map<String, Any?>,
@@ -203,13 +155,6 @@ class ExpoLiteRTModule : Module() {
     val systemPrompt: String,
     val userText: String,
     val imageUri: String,
-    val params: Map<String, Any?>,
-  )
-
-  private data class PdfPayload(
-    val systemPrompt: String,
-    val userText: String,
-    val pdfUri: String,
     val params: Map<String, Any?>,
   )
 }

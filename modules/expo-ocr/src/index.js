@@ -28,11 +28,6 @@ export function hasNativeBoundingBoxOcr() {
   return Boolean(ExpoOcr && typeof ExpoOcr.recognizeTextWithBounds === 'function');
 }
 
-/** Returns true when native image redaction support is available. */
-export function hasNativeImageRedaction() {
-  return Boolean(ExpoOcr && typeof ExpoOcr.redactImage === 'function');
-}
-
 /**
  * Recognize text and include bounding boxes when supported by native module.
  * Falls back to text-only output mapped to a simplified shape.
@@ -54,15 +49,4 @@ export async function recognizeTextWithBounds(imagePath, options = {}) {
     confidence: 1,
     boundingBox: null,
   }));
-}
-
-/**
- * Apply pixel-level redaction to the input image for the provided regions.
- * Requires native implementation.
- */
-export async function redactImage(imagePath, regions, options = {}) {
-  if (!ExpoOcr || typeof ExpoOcr.redactImage !== 'function') {
-    throw new Error('Image redaction is unavailable — native redactImage is not implemented yet.');
-  }
-  return await ExpoOcr.redactImage(imagePath, regions, options);
 }

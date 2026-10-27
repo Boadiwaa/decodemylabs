@@ -2,10 +2,6 @@ package expo.modules.ocr
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.RectF
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.Promise
@@ -13,8 +9,6 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.io.File
-import java.io.FileOutputStream
-import java.util.UUID
 
 class ExpoOcrModule : Module() {
   override fun definition() = ModuleDefinition {
@@ -114,76 +108,6 @@ class ExpoOcrModule : Module() {
       }
     }
 
-    AsyncFunction("redactImage") { imagePath: String, regions: List<Map<String, Any?>>, options: Map<String, Any>?, promise: Promise ->
-      try {
-        val cleanPath = cleanPath(imagePath)
-        val bitmap = decodeBitmapOrReject(cleanPath, promise) ?: return@AsyncFunction
-        val mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        bitmap.recycle()
-
-        val canvas = Canvas(mutableBitmap)
-        val colorHex = options?.get("color") as? String ?: "#000000"
-        val paint = Paint().apply {
-          style = Paint.Style.FILL
-          isAntiAlias = true
-          color = parseColorSafe(colorHex)
-        }
-
-        val imageWidth = mutableBitmap.width.toFloat()
-        val imageHeight = mutableBitmap.height.toFloat()
-
-        for (region in regions) {
-          val x = (region["x"] as? Number)?.toFloat() ?: continue
-          val y = (region["y"] as? Number)?.toFloat() ?: continue
-          val width = (region["width"] as? Number)?.toFloat() ?: continue
-          val height = (region["height"] as? Number)?.toFloat() ?: continue
-
-          val rect = if (x <= 1f && y <= 1f && width <= 1f && height <= 1f) {
-            RectF(
-              x * imageWidth,
-              y * imageHeight,
-              (x + width) * imageWidth,
-              (y + height) * imageHeight,
-            )
-          } else {
-            RectF(
-              x,
-              y,
-              x + width,
-              y + height,
-            )
-          }
-
-          val clampedRect = RectF(
-            rect.left.coerceIn(0f, imageWidth),
-            rect.top.coerceIn(0f, imageHeight),
-            rect.right.coerceIn(0f, imageWidth),
-            rect.bottom.coerceIn(0f, imageHeight),
-          )
-
-          if (clampedRect.width() > 0f && clampedRect.height() > 0f) {
-            canvas.drawRect(clampedRect, paint)
-          }
-        }
-
-        val outFile = File(appContext.cacheDirectory, "redacted_${System.currentTimeMillis()}_${UUID.randomUUID()}.jpg")
-        FileOutputStream(outFile).use { stream ->
-          mutableBitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
-          stream.flush()
-        }
-
-        mutableBitmap.recycle()
-
-        promise.resolve(
-          mapOf(
-            "uri" to "file://${outFile.absolutePath}",
-            "regionCount" to regions.size,
-          )
-        )
-      } catch (e: Exception) {
-        promise.reject("ERR_REDACTION", "Image redaction failed: ${e.message}", e)
-      }
-    }
   }
 
   private fun cleanPath(imagePath: String): String {
@@ -208,13 +132,5 @@ class ExpoOcrModule : Module() {
     }
 
     return bitmap
-  }
-
-  private fun parseColorSafe(value: String): Int {
-    return try {
-      Color.parseColor(value)
-    } catch (_: Exception) {
-      Color.BLACK
-    }
   }
 }

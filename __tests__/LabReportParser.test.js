@@ -1,7 +1,6 @@
 // The parser imports native-backed services; only the pure regex helpers are tested here.
 jest.mock('../src/services/LlamaService', () => ({ __esModule: true, default: {} }));
 jest.mock('../modules/expo-ocr/src/index', () => ({ recognizeText: jest.fn() }));
-jest.mock('../src/services/PIIRedactionService', () => ({}));
 
 import { __testing } from '../src/services/LabReportParser';
 

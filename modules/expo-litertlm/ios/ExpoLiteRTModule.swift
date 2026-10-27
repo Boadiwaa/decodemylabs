@@ -38,18 +38,6 @@ public class ExpoLiteRTModule: Module {
       throw NSError(domain: "ExpoLiteRT", code: 3, userInfo: [NSLocalizedDescriptionKey: unsupportedMessage])
     }
 
-    AsyncFunction("completeWithPdf") { (_ payload: [String: Any]?) -> String in
-      throw NSError(domain: "ExpoLiteRT", code: 4, userInfo: [NSLocalizedDescriptionKey: unsupportedMessage])
-    }
-
-    AsyncFunction("inferDocument") { (_ payload: [String: Any]?) -> String in
-      throw NSError(domain: "ExpoLiteRT", code: 4, userInfo: [NSLocalizedDescriptionKey: unsupportedMessage])
-    }
-
-    AsyncFunction("analyzeDocument") { (_ payload: [String: Any]?) -> String in
-      throw NSError(domain: "ExpoLiteRT", code: 4, userInfo: [NSLocalizedDescriptionKey: unsupportedMessage])
-    }
-
     AsyncFunction("release") { () -> Void in
       return
     }

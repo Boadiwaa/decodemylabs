@@ -23,7 +23,7 @@ TalkingLabs addresses each of these gaps.
 ## Solution Overview
 
 ```
-Patient photographs or uploads a lab report (image or PDF)
+Patient photographs a lab report or picks a photo of one
         ↓
 On-device model reads the report directly
   (Gemma 4 via LiteRT-LM on Android, or via llama.rn on iOS)
@@ -40,7 +40,7 @@ expo-speech (EN/FR) or Akan TTS reads it aloud
 Results stored on-device for longitudinal tracking
 ```
 
-Parsing, classification, and storage run **on-device**. Two features use the network: Akan voice playback (Hugging Face-hosted translation and speech models) and the optional remote Gemma provider (see [Configuration](#configuration)). In remote mode, photos are redacted on-device before upload; PDFs and extracted report text are currently sent without redaction.
+Parsing, interpretation, classification, and storage run **on-device**. Report photos never leave the phone. The one feature that uses the network is Akan voice playback: the English explanation text is sent to Hugging Face-hosted translation and speech models.
 
 ---
 
@@ -53,7 +53,7 @@ Parsing, classification, and storage run **on-device**. Two features use the net
 | **Trilingual TTS** | Listen to your explanation in English, French, or Akan. |
 | **Severity flags** | Color-coded: green (normal), amber (elevated), red (critical). |
 | **Trend tracking** | Chart your lab values over time. See if things are getting better or worse. |
-| **On-device AI** | Lab parsing runs on the phone. Report images stay on the device unless you enable the remote provider. |
+| **On-device AI** | Lab parsing and explanations run on the phone. Report images never leave the device. |
 | **Layered parsing** | Model vision → OCR + model text → regex → manual entry, so extraction still works when the model is unavailable. |
 
 ---
@@ -64,7 +64,6 @@ Parsing, classification, and storage run **on-device**. Two features use the net
 |---------|-------|-----------|-------|
 | `litertlm` | Gemma 4 E2B (`gemma-4-E2B-it.litertlm`, 2.59 GB) | Android | Default in `.env.local`. Text and image input on CPU. Requires LiteRT-LM ≥ 0.10.1. |
 | `llama` | Gemma 4 E2B GGUF (`gemma-4-E2B-it-Q4_0.gguf` 2.84 GB + `mmproj-gemma-4-E2B-it-Q8_0.gguf` 0.56 GB) | iOS, Android | Via `llama.rn` ≥ 0.12 (earlier versions can't load Gemma 4). iOS has no LiteRT bridge, so it uses this runtime. |
-| `remote` provider | Gemma API you host | Both | Set `EXPO_PUBLIC_MODEL_PROVIDER=remote`. Needs a server; see [Configuration](#configuration). |
 
 Both runtimes run the same model, so results should be similar across platforms. Severity always comes from the deterministic rules in `reference_ranges.js`, not from the model.
 
@@ -82,10 +81,8 @@ src/
 │   └── types.js               ← Agent interface contract (createAgentOutput)
 │
 ├── services/
-│   ├── LlamaService.js        ← Inference entry point: picks llama.rn, LiteRT, or remote
+│   ├── LlamaService.js        ← Inference entry point: picks llama.rn or LiteRT
 │   ├── LiteRTService.js       ← Android LiteRT-LM adapter + crash-loop guard
-│   ├── RemoteGemmaService.js  ← Optional hosted Gemma API client
-│   ├── PIIRedactionService.js ← Redacts images before any remote upload
 │   ├── LabReportParser.js     ← Extraction pipeline (vision → OCR → regex)
 │   ├── PatientStorage.js      ← AsyncStorage CRUD for on-device records
 │   └── AkanTTSService.js      ← Akan TTS via Hugging Face models + expo-av
@@ -97,7 +94,7 @@ src/
 │
 ├── screens/
 │   ├── DashboardScreen.js     ← Entry point with severity summary
-│   ├── LabUploadScreen.js     ← Photo/PDF capture, parsing, manual entry
+│   ├── LabUploadScreen.js     ← Photo capture, parsing, manual entry
 │   ├── ReportScreen.js        ← Report summary and key findings
 │   ├── MetricDetailScreen.js  ← Per-metric trend, Gemma explanation, TTS
 │   ├── PatientDetailScreen.js ← Legacy; not linked from the main flow
@@ -124,7 +121,7 @@ models/                        ← GITIGNORED — download via scripts/download-
 
 prompts/
 ├── labInterpretation.js       ← Interpretation prompts (imported by the agent)
-├── labExtraction.js           ← Text / image / PDF extraction prompts
+├── labExtraction.js           ← Text / image extraction prompts
 └── lab_interpretation.prompt.md  ← Original prompt write-up (reference only)
 
 __tests__/                     ← Jest unit tests (npm test)
@@ -201,7 +198,6 @@ Settings are read from `.env.local` (gitignored) at bundle time. Restart Metro a
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `EXPO_PUBLIC_MODEL_PROVIDER` | `local` | `local` (on-device) or `remote` (hosted Gemma API) |
 | `EXPO_PUBLIC_LOCAL_INFERENCE_RUNTIME` | `auto` | `litertlm`, `llama`, or `auto` (LiteRT on Android, then llama.rn if allowed) |
 | `EXPO_PUBLIC_ALLOW_ANDROID_LLAMA_FALLBACK` | `false` | Let `auto` fall back to llama.rn on Android |
 | `EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD` | `false` | Allow model loading on Android emulators |
@@ -209,16 +205,14 @@ Settings are read from `.env.local` (gitignored) at bundle time. Restart Metro a
 | `EXPO_PUBLIC_LITERT_MODEL_FILENAME` | `gemma-4-E2B-it.litertlm` | LiteRT model file name |
 | `EXPO_PUBLIC_LLAMA_MODEL_FILENAME` / `EXPO_PUBLIC_LLAMA_MMPROJ_FILENAME` | Gemma 4 GGUF files | llama.rn model files |
 | `EXPO_PUBLIC_HF_API_TOKEN` | — | Hugging Face token for Akan translation |
-| `EXPO_PUBLIC_GEMMA_API_*` | — | Remote provider URL, model, endpoints, timeout, and key |
 
 Example for Android on-device Gemma 4:
 
 ```
-EXPO_PUBLIC_MODEL_PROVIDER=local
 EXPO_PUBLIC_LOCAL_INFERENCE_RUNTIME=litertlm
 ```
 
-> **Warning:** every `EXPO_PUBLIC_` value is compiled into the app bundle and can be extracted from an installed app. Use personal development tokens only. For a public release, route Hugging Face and Gemma API calls through a server that holds the secrets.
+> **Warning:** every `EXPO_PUBLIC_` value is compiled into the app bundle and can be extracted from an installed app. Use personal development tokens only. For a public release, route Hugging Face calls through a server that holds the token.
 
 ---
 

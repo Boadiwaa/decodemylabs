@@ -5,24 +5,15 @@
  * via the custom expo-ocr module, then parses the extracted text with
  * Gemma or regex fallback.
  *
- * For PDFs: sends the PDF directly to the model for extraction, then falls
- * back to a text-extraction + model parse path when needed.
- *
  * Returns an array of ParsedLabResult objects that can be stored and displayed.
  */
 
-import * as FileSystem from 'expo-file-system/legacy';
 import llamaService from './LlamaService';
 import { recognizeText } from '../../modules/expo-ocr/src/index';
-import {
-  redactLabImageForRemoteInference,
-  sanitizeOcrTextForRemoteInference,
-} from './PIIRedactionService';
 import { REFERENCE_RANGES, classifySeverity } from '../domain/reference_ranges';
 import {
   EXTRACTION_PROMPT,
   IMAGE_EXTRACTION_PROMPT,
-  PDF_EXTRACTION_PROMPT,
 } from '../../prompts/labExtraction';
 
 /**
@@ -144,68 +135,6 @@ const TEST_PATTERNS = [
   { pattern: /(?:e)?gfr|glomerular\s*filtration/i, name: 'eGFR', unit: 'mL/min', range: '>60 mL/min' },
 ];
 
-function normalizeFileUri(uri) {
-  if (!uri) return uri;
-  if (uri.startsWith('file://') || uri.startsWith('data:')) return uri;
-  if (uri.startsWith('/')) return `file://${uri}`;
-  return uri;
-}
-
-function isLikelyClinicalLine(line) {
-  if (!line) return false;
-  const text = line.trim();
-  if (!text) return false;
-
-  const hasNumber = /\d/.test(text);
-  const hasLabKeyword = /(cholesterol|hba1c|glucose|creatinine|urea|bun|sodium|potassium|chloride|calcium|magnesium|hemoglobin|wbc|rbc|platelet|alt|ast|alp|ggt|bilirubin|albumin|globulin|protein|tsh|ldl|hdl|triglyceride|egfr)/i.test(text);
-
-  return hasLabKeyword || (hasNumber && text.length >= 5 && text.length <= 220);
-}
-
-/**
- * Extract likely readable text chunks from a PDF file payload.
- * This keeps parsing automatic even when direct PDF multimodal extraction
- * returns no structured output.
- */
-async function extractLikelyTextFromPdf(pdfUri) {
-  try {
-    const normalizedUri = normalizeFileUri(pdfUri);
-    const raw = await FileSystem.readAsStringAsync(normalizedUri, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-
-    if (!raw) return '';
-
-    const cleaned = raw
-      .replace(/\r/g, '\n')
-      .replace(/\u0000/g, ' ')
-      .replace(/[^\x09\x0A\x0D\x20-\x7Eµ²³×·]/g, ' ');
-
-    const textObjects = [];
-    const textObjectPattern = /\(([^()]{2,240})\)\s*TJ?/g;
-    let match;
-    while ((match = textObjectPattern.exec(cleaned)) !== null) {
-      textObjects.push(match[1]);
-    }
-
-    const candidate = (textObjects.length > 0 ? textObjects.join('\n') : cleaned)
-      .replace(/[<>\[\]{}]/g, ' ')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    const lines = candidate
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .filter(isLikelyClinicalLine);
-
-    return lines.join('\n').slice(0, 14000);
-  } catch (e) {
-    console.warn('[LabReportParser] Could not extract fallback text from PDF:', e.message);
-    return '';
-  }
-}
-
 /**
  * Parse a lab report by sending the image DIRECTLY to Gemma (multimodal).
  * This bypasses OCR entirely and uses Gemma's vision capabilities.
@@ -230,29 +159,13 @@ export async function parseLabReportFromImage(imageUri, reportId, onProgress) {
   }
 
   try {
-    let imageForModel = imageUri;
-
-    if (llamaService.provider === 'remote') {
-      // Privacy gate: fail closed if on-device redaction capability is unavailable.
-      console.log('[LabReportParser] Remote provider enabled — redacting PII before image upload...');
-      onProgress?.(0.2);
-
-      const redaction = await redactLabImageForRemoteInference(imageUri);
-      if (!redaction?.success || !redaction?.redactedUri) {
-        console.warn('[LabReportParser] PII redaction gate blocked remote upload:', redaction?.reason);
-        return null; // signal caller to continue with local OCR/manual fallback paths
-      }
-
-      imageForModel = redaction.redactedUri;
-    }
-
     console.log('[LabReportParser] Sending image to model for analysis...');
     onProgress?.(0.3);
 
     const rawOutput = await llamaService.completeWithImage(
       IMAGE_EXTRACTION_PROMPT,
       'Extract all lab test results from this lab report image.',
-      imageForModel,
+      imageUri,
       {
         n_predict: 550,
         temperature: 0.1,   // Very low for structured extraction
@@ -281,70 +194,6 @@ export async function parseLabReportFromImage(imageUri, reportId, onProgress) {
 }
 
 /**
- * Parse a lab report by sending the PDF directly to the model.
- * Falls back to PDF text extraction + model parsing if the direct pass
- * doesn't return structured JSON lines.
- *
- * @param {string} pdfUri
- * @param {string} reportId
- * @param {function} [onProgress]
- * @returns {Promise<ParsedLabResult[]>}
- */
-export async function parseLabReportFromPdf(pdfUri, reportId, onProgress) {
-  if (!pdfUri) {
-    console.warn('[LabReportParser] No PDF URI provided');
-    return [];
-  }
-
-  onProgress?.(0.1);
-
-  if (!llamaService.isReady) {
-    console.log('[LabReportParser] Model not ready for PDF parsing');
-    return [];
-  }
-
-  try {
-    onProgress?.(0.3);
-    console.log('[LabReportParser] Sending PDF directly to model for parsing...');
-
-    const rawOutput = await llamaService.completeWithPdf(
-      PDF_EXTRACTION_PROMPT,
-      'Extract all lab test results from this PDF lab report.',
-      pdfUri,
-      {
-        n_predict: 1800,
-        temperature: 0.1,
-      }
-    );
-
-    onProgress?.(0.65);
-    const directResults = parseModelExtractionOutput(rawOutput, reportId);
-    if (directResults.length > 0) {
-      console.log(`[LabReportParser] Direct PDF parsing extracted ${directResults.length} lab results`);
-      onProgress?.(1.0);
-      return directResults;
-    }
-
-    console.log('[LabReportParser] Direct PDF parsing returned no structured results');
-  } catch (e) {
-    console.warn('[LabReportParser] Direct PDF parsing failed:', e.message);
-  }
-
-  // Automatic fallback: extract likely PDF text and send to model parser.
-  onProgress?.(0.75);
-  const pdfText = await extractLikelyTextFromPdf(pdfUri);
-  if (pdfText && pdfText.trim().length > 20) {
-    console.log('[LabReportParser] Running model parse on extracted PDF text fallback');
-    return parseLabReportWithModel(pdfText, reportId, (progress) => {
-      onProgress?.(0.75 + progress * 0.25);
-    });
-  }
-
-  onProgress?.(1.0);
-  return [];
-}
-
-/**
  * Parse a lab report using the Gemma model.
  * @param {string} reportText - Extracted text from the report
  * @param {string} reportId   - ID of the source report for linking
@@ -359,17 +208,6 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
 
   // Extract report date from the text upfront for use as fallback
   const fallbackDate = extractReportDate(reportText);
-  const modelInputText = llamaService.provider === 'remote'
-    ? sanitizeOcrTextForRemoteInference(reportText)
-    : reportText;
-
-  if (!modelInputText || modelInputText.trim().length < 10) {
-    console.warn('[LabReportParser] Sanitized text too short for model parsing, using regex fallback');
-    onProgress?.(0.5);
-    const sanitizedFallbackResults = extractWithRegex(reportText, reportId);
-    onProgress?.(1.0);
-    return sanitizedFallbackResults;
-  }
 
   onProgress?.(0.1);
 
@@ -378,7 +216,7 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
     try {
       onProgress?.(0.3);
 
-      const userPrompt = `Extract lab results from this report:\n\n${modelInputText.slice(0, 3000)}`;
+      const userPrompt = `Extract lab results from this report:\n\n${reportText.slice(0, 3000)}`;
       const fullPrompt = llamaService.formatPrompt(EXTRACTION_PROMPT, userPrompt);
 
       const rawOutput = await llamaService.complete(fullPrompt, {
@@ -752,7 +590,6 @@ export function createManualEntryPrompt(testName, value, unit) {
 
 export default {
   parseLabReportFromImage,
-  parseLabReportFromPdf,
   parseLabReportWithModel,
   recognizeTextFromImage,
   createManualEntryPrompt,

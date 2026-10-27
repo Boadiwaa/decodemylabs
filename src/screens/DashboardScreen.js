@@ -103,7 +103,7 @@ export default function DashboardScreen({ navigation }) {
               </>
             ) : (
               <>
-                Welcome! Add a photo or PDF of your lab report and we'll explain each result in plain language.{'\n'}
+                Welcome! Add a photo of your lab report and we'll explain each result in plain language.{'\n'}
                 You can even listen to it read aloud. 🎧
               </>
             )}
@@ -127,7 +127,7 @@ export default function DashboardScreen({ navigation }) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.uploadTitle}>Upload a Lab Report</Text>
-              <Text style={styles.uploadSub}>PDF, photo, or snap with your camera</Text>
+              <Text style={styles.uploadSub}>Pick a photo or snap one with your camera</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
           </TouchableOpacity>

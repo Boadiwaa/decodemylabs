@@ -389,22 +389,6 @@ class LiteRTService {
     );
   }
 
-  async completeWithPdf(systemPrompt, userText, pdfUri, params = {}) {
-    if (!this._ready) {
-      throw new Error('LiteRT runtime is not initialized. Call initialize() first.');
-    }
-
-    const normalizedPdfUri = normalizeToFileUri(pdfUri);
-    return this._invokeNative(
-      ['completeWithPdf', 'inferDocument', 'analyzeDocument'],
-      [
-        { systemPrompt, userText, pdfUri: normalizedPdfUri, params },
-        { prompt: `${systemPrompt}\n\n${userText}`, pdfUri: normalizedPdfUri, params },
-        [systemPrompt, userText, normalizedPdfUri, params],
-      ]
-    );
-  }
-
   async release() {
     try {
       this.refreshNativeBinding();

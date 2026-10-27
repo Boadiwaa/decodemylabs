@@ -1,5 +1,5 @@
 /**
- * LabUploadScreen — upload lab reports via camera, gallery, or PDF.
+ * LabUploadScreen — upload lab report photos via camera or gallery.
  *
  * After upload:
  *  1. Shows a processing progress bar
@@ -22,7 +22,6 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming,
 } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
@@ -34,7 +33,7 @@ import {
   appendLabResults, deleteLabResultsByReport, deleteLabResultById,
 } from '../services/PatientStorage';
 import {
-  parseLabReportFromImage, parseLabReportFromPdf, parseLabReportWithModel, recognizeTextFromImage,
+  parseLabReportFromImage, parseLabReportWithModel, recognizeTextFromImage,
 } from '../services/LabReportParser';
 import { classifySeverity, REFERENCE_RANGES } from '../domain/reference_ranges';
 import Colors from '../constants/colors';
@@ -140,22 +139,6 @@ export default function LabUploadScreen({ navigation }) {
     }
   };
 
-  const handlePDF = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
-        copyToCacheDirectory: true,
-      });
-      if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0];
-        await saveAndProcess(asset.uri, asset.name || 'Lab_Report.pdf', 'pdf');
-      }
-    } catch (e) {
-      console.warn('PDF pick error:', e);
-    }
-  };
-
   /**
    * Save the report file and start processing pipeline.
    */
@@ -180,58 +163,31 @@ export default function LabUploadScreen({ navigation }) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await loadReports();
 
-      // Step 2: For images, try direct Gemma vision analysis first
-      if (type === 'image') {
-        setProcessingMessage('Analyzing lab report with AI vision...');
-        progressAnim.value = withTiming(0.3, { duration: 500 });
+      // Step 2: Try direct Gemma vision analysis first
+      setProcessingMessage('Analyzing lab report with AI vision...');
+      progressAnim.value = withTiming(0.3, { duration: 500 });
 
-        // Try direct image → Gemma (bypasses OCR entirely)
-        const visionResults = await parseLabReportFromImage(
-          storedUri,
-          report.id,
-          (progress) => {
-            progressAnim.value = withTiming(0.3 + progress * 0.6, { duration: 300 });
-          }
-        );
-
-        if (visionResults && visionResults.length > 0) {
-          // Vision analysis succeeded!
-          setProcessingMessage(`Found ${visionResults.length} lab result${visionResults.length !== 1 ? 's' : ''}!`);
-          progressAnim.value = withTiming(1, { duration: 300 });
-          setParsedResults(visionResults);
-          await appendLabResults(user.id, visionResults);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setShowManualEntry(true);
-        } else {
-          // Vision not available or returned nothing — fall back to OCR pipeline
-          console.log('[LabUpload] Vision unavailable or empty, falling back to OCR...');
-          await fallbackOcrPipeline(storedUri, report.id, type);
+      // Try direct image → Gemma (bypasses OCR entirely)
+      const visionResults = await parseLabReportFromImage(
+        storedUri,
+        report.id,
+        (progress) => {
+          progressAnim.value = withTiming(0.3 + progress * 0.6, { duration: 300 });
         }
+      );
+
+      if (visionResults && visionResults.length > 0) {
+        // Vision analysis succeeded!
+        setProcessingMessage(`Found ${visionResults.length} lab result${visionResults.length !== 1 ? 's' : ''}!`);
+        progressAnim.value = withTiming(1, { duration: 300 });
+        setParsedResults(visionResults);
+        await appendLabResults(user.id, visionResults);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setShowManualEntry(true);
       } else {
-        // PDFs: direct model parsing path
-        setProcessingMessage('Analyzing PDF with AI...');
-        progressAnim.value = withTiming(0.3, { duration: 500 });
-
-        const pdfResults = await parseLabReportFromPdf(
-          storedUri,
-          report.id,
-          (progress) => {
-            progressAnim.value = withTiming(0.3 + progress * 0.6, { duration: 300 });
-          }
-        );
-
-        if (pdfResults && pdfResults.length > 0) {
-          setProcessingMessage(`Found ${pdfResults.length} lab result${pdfResults.length !== 1 ? 's' : ''} from your PDF!`);
-          progressAnim.value = withTiming(1, { duration: 300 });
-          setParsedResults(pdfResults);
-          await appendLabResults(user.id, pdfResults);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setShowManualEntry(true);
-        } else {
-          setProcessingMessage('Could not extract values automatically from this PDF. Please review and add manually below.');
-          progressAnim.value = withTiming(1, { duration: 400 });
-          setShowManualEntry(true);
-        }
+        // Vision not available or returned nothing — fall back to OCR pipeline
+        console.log('[LabUpload] Vision unavailable or empty, falling back to OCR...');
+        await fallbackOcrPipeline(storedUri, report.id, type);
       }
     } catch (e) {
       console.error('Save/process error:', e);
@@ -466,7 +422,7 @@ export default function LabUploadScreen({ navigation }) {
           <Text style={styles.heroEmoji}>📄</Text>
           <Text style={styles.heroTitle}>Upload your lab reports</Text>
           <Text style={styles.heroSubtitle}>
-            Take a photo, pick from your gallery, or upload a PDF.
+            Take a photo or pick one from your gallery.
             We'll try to read your results automatically — and you can always add them manually too!
           </Text>
         </Animated.View>
@@ -685,24 +641,6 @@ export default function LabUploadScreen({ navigation }) {
                 </View>
               </TouchableOpacity>
             </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(360).springify()}>
-              <TouchableOpacity
-                onPress={handlePDF}
-                style={[styles.uploadCard, { borderColor: Colors.warnBorder }]}
-                activeOpacity={0.7}
-                disabled={uploading}
-                accessibilityLabel="Upload PDF lab report"
-              >
-                <View style={[styles.uploadIconWrap, { backgroundColor: Colors.warnBg }]}>
-                  <Ionicons name="document-text" size={28} color={Colors.warn} />
-                </View>
-                <View>
-                  <Text style={styles.uploadTitle}>Upload PDF</Text>
-                  <Text style={styles.uploadDesc}>Select a PDF lab report from your files</Text>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
           </View>
         )}
 
@@ -759,7 +697,7 @@ export default function LabUploadScreen({ navigation }) {
         <Animated.View entering={FadeIn.delay(600)} style={styles.privacy}>
           <Ionicons name="shield-checkmark-outline" size={14} color={Colors.safe} />
           <Text style={styles.privacyText}>
-            All reports and results are stored on this device only. Nothing leaves your phone.
+            All reports and results are stored on this device only.
           </Text>
         </Animated.View>
       </ScrollView>

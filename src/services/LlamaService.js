@@ -1,6 +1,6 @@
 /**
  * LlamaService — singleton service for on-device LLM inference.
- * Wraps local runtimes (llama.rn or LiteRT-LM) and remote provider calls.
+ * Wraps the local runtimes (llama.rn or LiteRT-LM).
  *
  * Local runtime selection:
  * - Android: prefers LiteRT-LM when configured and available.
@@ -20,10 +20,8 @@ import {
   LLAMA_MMPROJ_FILENAME,
   LLAMA_MODEL_FILENAME,
   LOCAL_INFERENCE_RUNTIME,
-  MODEL_PROVIDER,
 } from '../constants/inference';
 import liteRTService from './LiteRTService';
-import remoteGemmaService from './RemoteGemmaService';
 
 /**
  * Pre-flight check: is the llama.rn native module available?
@@ -119,10 +117,7 @@ class LlamaService {
     // Loading progress (0–1) emitted by initLlama
     this._loadProgress = 0;
 
-    // Inference provider mode: local llama.rn (default) or remote API.
-    this._provider = MODEL_PROVIDER === 'remote' ? 'remote' : 'local';
-
-    // Active local runtime when provider=local: llama | litertlm
+    // Active local runtime: llama | litertlm
     this._localRuntime = 'llama';
   }
 
@@ -130,12 +125,9 @@ class LlamaService {
 
   get status() { return this._status; }
   get error() { return this._error; }
-  get provider() { return this._provider; }
   get localRuntime() { return this._localRuntime; }
   get isReady() { return this._status === 'ready'; }
   get isMultimodalReady() {
-    // Remote provider advertises multimodal readiness through overall readiness.
-    if (this._provider === 'remote') return this.isReady;
     if (this._localRuntime === 'litertlm') return this.isReady;
     return this._multimodalReady;
   }
@@ -172,7 +164,7 @@ class LlamaService {
   }
 
   _enforceAndroidGuardrails() {
-    if (this._provider !== 'local' || Platform.OS !== 'android') {
+    if (Platform.OS !== 'android') {
       return;
     }
 
@@ -205,7 +197,7 @@ class LlamaService {
       const availableGb = (totalMemory / BYTES_PER_GB).toFixed(1);
       throw new Error(
         `This device reports ${availableGb} GB RAM. Local GGUF loading is disabled below ` +
-        `${MIN_ANDROID_MODEL_RAM_GB} GB to reduce crash risk. Continue in rule-based mode or use remote provider.`
+        `${MIN_ANDROID_MODEL_RAM_GB} GB to reduce crash risk. Continue in rule-based mode.`
       );
     }
   }
@@ -501,16 +493,6 @@ class LlamaService {
       this._enforceAndroidGuardrails();
       this._localRuntime = 'llama';
 
-      if (this._provider === 'remote') {
-        await remoteGemmaService.initialize();
-        this._loadProgress = 1;
-        this._multimodalReady = true;
-        this._localRuntime = 'remote';
-        this._setStatus('ready');
-        console.log('[LlamaService] Remote Gemma provider initialized');
-        return;
-      }
-
       const shouldTryLiteRT =
         Platform.OS === 'android' &&
         LOCAL_INFERENCE_RUNTIME !== 'llama';
@@ -700,13 +682,6 @@ class LlamaService {
    * @returns {Promise<string>} The model's generated text
    */
   async complete(prompt, params = {}, onToken = null) {
-    if (this._provider === 'remote') {
-      if (this._status !== 'ready') {
-        throw new Error('Remote provider not initialized. Call initialize() first.');
-      }
-      return remoteGemmaService.complete(prompt, params, onToken);
-    }
-
     if (this._localRuntime === 'litertlm') {
       if (this._status !== 'ready') {
         throw new Error('LiteRT provider not initialized. Call initialize() first.');
@@ -820,13 +795,6 @@ class LlamaService {
    * @returns {Promise<string>} The model's generated text
    */
   async completeWithImage(systemPrompt, userText, imageUri, params = {}) {
-    if (this._provider === 'remote') {
-      if (this._status !== 'ready') {
-        throw new Error('Remote provider not initialized. Call initialize() first.');
-      }
-      return remoteGemmaService.completeWithImage(systemPrompt, userText, imageUri, params);
-    }
-
     if (this._localRuntime === 'litertlm') {
       if (this._status !== 'ready') {
         throw new Error('LiteRT provider not initialized. Call initialize() first.');
@@ -913,48 +881,10 @@ class LlamaService {
     }
   }
 
-  /**
-   * Run a completion with a PDF document.
-   * Remote provider sends PDF bytes directly as multimodal input.
-   * Local provider attempts direct multimodal parsing via the same completion path.
-   * @param {string} systemPrompt
-   * @param {string} userText
-   * @param {string} pdfUri
-   * @param {object} [params]
-   * @returns {Promise<string>}
-   */
-  async completeWithPdf(systemPrompt, userText, pdfUri, params = {}) {
-    if (this._provider === 'remote') {
-      if (this._status !== 'ready') {
-        throw new Error('Remote provider not initialized. Call initialize() first.');
-      }
-      return remoteGemmaService.completeWithPdf(systemPrompt, userText, pdfUri, params);
-    }
-
-    if (this._localRuntime === 'litertlm') {
-      if (this._status !== 'ready') {
-        throw new Error('LiteRT provider not initialized. Call initialize() first.');
-      }
-      return liteRTService.completeWithPdf(systemPrompt, userText, pdfUri, params);
-    }
-
-    // Best-effort local path: route to multimodal completion with the PDF URI.
-    // Some runtimes will reject non-image URLs; parser handles fallback paths.
-    return this.completeWithImage(systemPrompt, userText, pdfUri, params);
-  }
-
   // -- Cleanup --
 
   /** Release the model and free memory */
   async release() {
-    if (this._provider === 'remote') {
-      this._busy = false;
-      this._abortCurrent = null;
-      this._multimodalReady = false;
-      this._setStatus('idle');
-      return;
-    }
-
     if (this._localRuntime === 'litertlm') {
       await liteRTService.release();
       this._localRuntime = 'llama';
@@ -997,10 +927,6 @@ class LlamaService {
 
   /** Check if model exists on device (documents dir or external storage) */
   async isModelDownloaded() {
-    if (this._provider === 'remote') {
-      return remoteGemmaService.isConfigured;
-    }
-
     if (Platform.OS === 'android' && LOCAL_INFERENCE_RUNTIME !== 'llama') {
       const liteRTPath = await liteRTService.findModelPath();
       if (liteRTPath) return true;

@@ -103,7 +103,6 @@ This uses `adb push` to copy whichever model files exist in `models/` to `/data/
 4. Create `.env.local` in the project root (see [README → Configuration](README.md#configuration)), for example:
 
 ```
-EXPO_PUBLIC_MODEL_PROVIDER=local
 EXPO_PUBLIC_LOCAL_INFERENCE_RUNTIME=litertlm
 ```
 
@@ -261,8 +260,8 @@ cd ios && pod repo update && pod install && cd ..
 
 ## 10. Environment Notes
 
-- Runtime settings come from `.env.local` (gitignored). Without it, the app defaults to the local provider in `auto` mode. Restart Metro after editing it.
+- Runtime settings come from `.env.local` (gitignored). Without it, the app uses `auto` runtime selection. Restart Metro after editing it.
 - `HF_TOKEN` (shell variable) is optional and only used by the download script.
 - `EXPO_PUBLIC_HF_API_TOKEN` is used at runtime by Akan voice playback, which calls Hugging Face-hosted models and needs internet. English and French playback use on-device `expo-speech`.
-- No backend server is required for on-device inference. The optional remote provider (`EXPO_PUBLIC_MODEL_PROVIDER=remote`) needs a Gemma API server you host.
+- No backend server is needed. All model inference runs on the device.
 - `EXPO_PUBLIC_` values are compiled into the app bundle. Do not put production secrets in them.

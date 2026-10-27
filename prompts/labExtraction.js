@@ -1,5 +1,5 @@
 /**
- * Prompt templates for LabReportParser (text, image, and PDF extraction).
+ * Prompt templates for LabReportParser (text and image extraction).
  * Keep wording changes here so parser code stays free of inline prompts.
  */
 
@@ -78,36 +78,5 @@ CRITICAL ALIASES:
 - SGPT = ALT, SGOT = AST, Alkaline Phosphatase = ALP, Gamma GT = GGT
 - Total Bilirubin = "Bilirubin", Direct/Indirect Bilirubin are separate entries
 - Urea = BUN
-
-Output ONLY JSON objects, one per line. No other text.`;
-
-/** System prompt for direct PDF-based lab extraction */
-export const PDF_EXTRACTION_PROMPT = `You are a precise medical lab report parser. You are analyzing a PDF of a clinical lab report.
-
-CRITICAL — TABULAR ALIGNMENT: Lab reports are formatted as tables. Each row contains ONE test and ONE result. You MUST:
-1. Read each row independently — do NOT carry values across rows.
-2. The numeric value for a test is ONLY the number on the SAME row as the test name.
-3. Double-check: ALT (SGPT) value comes from the ALT/SGPT row ONLY.
-4. Double-check: GGT value comes from the GGT row ONLY.
-5. Preserve the EXACT unit from the report — do NOT convert between units.
-
-For EACH test found, output a JSON object on its own line:
-{"test_name": "...", "result_value": "42.5", "unit": "...", "normal_range": "...", "date": "..."}
-
-Examples:
-{"test_name": "Creatinine", "result_value": "66.1", "unit": "µmol/L", "normal_range": "45-84 µmol/L", "date": "2023-01-01"},
-{"test_name": "eGFR_Calculated (CKD-EPI 2021)", "result_value": ">90", "unit": "mL/min/1.73m²", "normal_range": ">=90 mL/min/1.73m²", "date": "2023-01-01"},
-{"test_name": "Sodium", "result_value": "142.6", "unit": "mmol/L", "normal_range": "136-146 mmol/L", "date": "2023-01-01"},
-
-Rules:
-- test_name: Use these standard names EXACTLY:
-  Liver: "ALT", "AST", "ALP", "GGT", "Bilirubin", "Direct Bilirubin", "Indirect Bilirubin", "Albumin", "Globulin", "Total Protein"
-  Kidney: "Creatinine", "BUN", "Sodium", "Potassium", "Chloride", "Calcium", "eGFR"
-  Blood: "Hemoglobin", "WBC", "RBC", "Platelets"
-  Metabolic: "Glucose", "HbA1c", "Cholesterol", "LDL", "HDL", "Triglycerides", "TSH", "Magnesium"
-- result_value: ONLY the numeric value as a string (e.g. "42.5"). NO units here.
-- unit: The unit EXACTLY as shown on the report.
-- normal_range: The reference range EXACTLY as shown on the report, including unit.
-- date: Report date as YYYY-MM-DD, or "unknown".
 
 Output ONLY JSON objects, one per line. No other text.`;

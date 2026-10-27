@@ -1,6 +1,5 @@
 package expo.modules.litert
 
-import android.content.Context
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Engine
@@ -33,7 +32,7 @@ class LiteRTEngine {
         modelPath = normalizedModelPath,
         backend = Backend.CPU(),
         // Without a vision backend the engine segfaults on image input.
-        // Images (including rasterized PDF pages) are sent one per message.
+        // Images are sent one per message.
         visionBackend = Backend.CPU(),
         maxNumImages = 1,
       )
@@ -87,48 +86,6 @@ class LiteRTEngine {
     }
   }
 
-  fun completeWithPdf(
-    context: Context,
-    systemPrompt: String,
-    userText: String,
-    pdfUri: String,
-    params: Map<String, Any?>,
-  ): String {
-    val pdfPath = normalizePath(pdfUri)
-    val pdfFile = File(pdfPath)
-    if (!pdfFile.exists()) {
-      throw IllegalArgumentException("PDF file not found at: $pdfPath")
-    }
-
-    val maxPages = parsePageCount(params)
-    val prompt = composePrompt(systemPrompt, userText)
-    val rasterizedUris = PdfRasterizer.rasterizePdfToJpegPages(context, pdfPath, maxPages)
-
-    if (rasterizedUris.isEmpty()) {
-      throw IllegalStateException("No pages were rasterized from PDF")
-    }
-
-    return try {
-      val outputs = rasterizedUris.map { uri ->
-        val pagePath = normalizePath(uri)
-        completeWithImage(prompt, "", pagePath, params)
-      }.filter { it.isNotBlank() }
-
-      if (outputs.isEmpty()) {
-        throw IllegalStateException("PDF inference produced empty output")
-      }
-
-      outputs.joinToString("\n")
-    } finally {
-      rasterizedUris.forEach { uri ->
-        try {
-          File(normalizePath(uri)).delete()
-        } catch (_: Exception) {
-        }
-      }
-    }
-  }
-
   fun release() {
     synchronized(lock) {
       releaseLocked()
@@ -169,14 +126,6 @@ class LiteRTEngine {
       system.isNotEmpty() -> system
       else -> user
     }
-  }
-
-  private fun parsePageCount(params: Map<String, Any?>): Int {
-    val explicit = (params["maxPages"] as? Number)?.toInt()
-      ?: (params["max_pages"] as? Number)?.toInt()
-      ?: 2
-
-    return explicit.coerceIn(1, 6)
   }
 
   private fun extractText(message: Message): String {

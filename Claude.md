@@ -1,7 +1,7 @@
 # CLAUDE.md - Project Context for AI Assistants
 
 ## What Is This App?
-TalkingLabs is a patient-facing mobile app built with Expo and React Native that helps people understand lab reports in plain language. Users can upload report images or PDFs, review extracted values, see a clear summary, and open metric-level explanations with trend context and text-to-speech support.
+TalkingLabs is a patient-facing mobile app built with Expo and React Native that helps people understand lab reports in plain language. Users can upload photos of their reports, review extracted values, see a clear summary, and open metric-level explanations with trend context and text-to-speech support.
 
 ## Current Product Scope
 - Patient mode only. There is no active clinician mode.
@@ -10,7 +10,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 
 ## Core User Journey
 1. Sign up and onboarding: user registers and completes demographics, medical history, and drug history.
-2. Upload lab report: user uploads from camera, photo library, or PDF picker.
+2. Upload lab report: user uploads from camera or photo library. PDF upload is removed for now.
 3. Parse and confirm: app attempts automatic extraction, then allows manual correction and entry.
 4. Report-first review: user lands on a report summary with severity counts and key findings.
 5. Metric deep dive: user opens individual metrics for trend chart, personalized explanation, and TTS playback.
@@ -24,18 +24,17 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - Safety-first communication: include clear medical safety disclaimers in patient-facing content.
 
 ## Data Flow
-1. Capture: uploads are handled in LabUploadScreen.js using expo-image-picker and expo-document-picker.
+1. Capture: uploads are handled in LabUploadScreen.js using expo-image-picker.
 2. Persist files: uploaded files and report metadata are saved on-device via PatientStorage.js.
 3. Image parse path (primary): images first attempt direct multimodal extraction in LabReportParser.js through LlamaService.js.
 4. OCR fallback path: if multimodal is unavailable or empty, app runs on-device OCR and text parsing in LabReportParser.js.
 5. Regex fallback path: if model text parsing returns no structured values, regex extraction runs in LabReportParser.js.
 6. Manual entry fallback: if automatic extraction is insufficient, users manually enter values in LabUploadScreen.js.
-7. PDF behavior: PDFs are sent to the model directly for automatic parsing; if direct extraction is insufficient, the app falls back to model parsing of extracted PDF text, then manual correction in LabUploadScreen.js.
-8. Classification and trends: deterministic severity and deviation come from reference_ranges.js, with trend and urgency helpers in interpretation_rules.js.
-9. Personalization: medication and condition-aware deterministic context is generated in personalization.js using stored patient context from PatientStorage.js.
-10. Interpretation: LabInterpretationAgent.js uses on-device inference when available and falls back to rule-based output; useLabInterpretation.js can then fall back to demo explanations when needed.
-11. Render and navigation: upload and dashboard flows open ReportScreen.js, then MetricDetailScreen.js, wired through TabNavigator.js.
-12. State ownership: auth and onboarding state lives in AuthContext.js, model readiness in ModelContext.js, and lightweight app-level mode/toast state in AppContext.js.
+7. Classification and trends: deterministic severity and deviation come from reference_ranges.js, with trend and urgency helpers in interpretation_rules.js.
+8. Personalization: medication and condition-aware deterministic context is generated in personalization.js using stored patient context from PatientStorage.js.
+9. Interpretation: LabInterpretationAgent.js uses on-device inference when available and falls back to rule-based output; useLabInterpretation.js can then fall back to demo explanations when needed.
+10. Render and navigation: upload and dashboard flows open ReportScreen.js, then MetricDetailScreen.js, wired through TabNavigator.js.
+11. State ownership: auth and onboarding state lives in AuthContext.js, model readiness in ModelContext.js, and lightweight app-level mode/toast state in AppContext.js.
 
 ## Key Files to Understand First
 
@@ -65,10 +64,8 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 
 ### Services
 - LabReportParser.js - Image/OCR parsing pipeline and structured extraction
-- LlamaService.js - Inference entry point; routes to llama.rn, LiteRT, or the remote provider
+- LlamaService.js - Inference entry point; routes to llama.rn or LiteRT
 - LiteRTService.js - Android LiteRT-LM adapter (Gemma 4) with a crash-loop guard
-- RemoteGemmaService.js - Optional hosted Gemma API client
-- PIIRedactionService.js - Image redaction gate before remote upload
 - PatientStorage.js - Persistent storage API
 - AkanTTSService.js - Akan TTS support
 - ModelSetup.js - Model setup utilities

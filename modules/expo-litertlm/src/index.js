@@ -59,22 +59,6 @@ export async function completeLiteRTWithImage(systemPrompt, userText, imageUri, 
   throw new Error('ExpoLiteRT image inference method is missing.');
 }
 
-export async function completeLiteRTWithPdf(systemPrompt, userText, pdfUri, params = {}) {
-  const module = ensureModule();
-  const payload = { systemPrompt, userText, pdfUri, params };
-
-  if (typeof module.completeWithPdf === 'function') {
-    return module.completeWithPdf(payload);
-  }
-  if (typeof module.inferDocument === 'function') {
-    return module.inferDocument(payload);
-  }
-  if (typeof module.analyzeDocument === 'function') {
-    return module.analyzeDocument(payload);
-  }
-  throw new Error('ExpoLiteRT PDF inference method is missing.');
-}
-
 export async function releaseLiteRT() {
   const module = ensureModule();
   if (typeof module.release === 'function') {
