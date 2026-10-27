@@ -21,7 +21,7 @@ export default function DashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const {
     getPatients, getLabResultsFn, getAlerts, getTrends,
-    hasRealData, reportSessions, getReportSessionData, refresh,
+    hasRealData, isLoading, reportSessions, getReportSessionData, refresh,
   } = useUserLabData();
 
   const [activeTab, setActiveTab] = useState('current');
@@ -96,8 +96,17 @@ export default function DashboardScreen({ navigation }) {
         <Animated.View entering={FadeInDown.delay(50).springify()} style={styles.welcomeCard}>
           <Text style={{ ...Typography.h3, color: Colors.navy }}>Hey {greetingName}! 👋🏿</Text>
           <Text style={{ ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 8, lineHeight: 20 }}>
-            Great to see you! Your latest results are ready below.{'\n'}
-            Tap your profile card to get a friendly breakdown — you can even listen to it read aloud. 🎧
+            {hasRealData ? (
+              <>
+                Great to see you! Your latest results are ready below.{'\n'}
+                Tap your profile card to get a friendly breakdown — you can even listen to it read aloud. 🎧
+              </>
+            ) : (
+              <>
+                Welcome! Add a photo or PDF of your lab report and we'll explain each result in plain language.{'\n'}
+                You can even listen to it read aloud. 🎧
+              </>
+            )}
           </Text>
         </Animated.View>
 
@@ -153,11 +162,13 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.sectionTitle}>
             {activeTab === 'current' ? 'YOUR RESULTS' : 'PAST REPORTS'}
           </Text>
-          <Text style={styles.sectionCount}>
-            {activeTab === 'current'
-              ? `${visiblePatients.length} patient${visiblePatients.length !== 1 ? 's' : ''}`
-              : `${reportSessions.length} report${reportSessions.length !== 1 ? 's' : ''}`}
-          </Text>
+          {hasRealData && (
+            <Text style={styles.sectionCount}>
+              {activeTab === 'current'
+                ? `${visiblePatients.length} patient${visiblePatients.length !== 1 ? 's' : ''}`
+                : `${reportSessions.length} report${reportSessions.length !== 1 ? 's' : ''}`}
+            </Text>
+          )}
         </View>
 
         {/* CURRENT TAB — Patient cards (latest results) */}
@@ -175,7 +186,7 @@ export default function DashboardScreen({ navigation }) {
                   onPress={(patient) => navigation.navigate('Report', { patientId: patient.id })}
                 />
               ))
-            ) : (
+            ) : !isLoading && (
               <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.emptyCard}>
                 <Text style={{ fontSize: 40, marginBottom: 10 }}>📋</Text>
                 <Text style={styles.emptyTitle}>No lab results yet</Text>
@@ -189,6 +200,7 @@ export default function DashboardScreen({ navigation }) {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     navigation.navigate('LabUpload');
                   }}
+                  accessibilityRole="button"
                   accessibilityLabel="Upload your first lab report"
                 >
                   <Ionicons name="cloud-upload-outline" size={18} color="#fff" />

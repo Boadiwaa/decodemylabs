@@ -2,7 +2,8 @@
  * useUserLabData — provides lab results, alerts, and trends from
  * on-device storage for the current patient user.
  *
- * Falls back to mock data if no stored data exists.
+ * Returns empty lists until the user uploads a report, so screens can show
+ * their empty states. Demo data is never shown as the user's own results.
  * This is the bridge between real uploaded data and the display layer.
  *
  * Supports "current" (latest report) and "past" (previous reports) views.
@@ -17,13 +18,6 @@ import {
   buildTrendFromResults,
 } from '../services/PatientStorage';
 import { classifySeverity } from '../domain/reference_ranges';
-import {
-  patients as mockPatients,
-  labResults as mockLabResults,
-  alerts as mockAlerts,
-  trends as mockTrends,
-  reminders as mockReminders,
-} from '../data/mockData';
 
 function parseNumericValue(resultValue) {
   const match = String(resultValue || '').match(/-?\d+\.?\d*/);
@@ -177,12 +171,12 @@ function buildProfileDesc(profile) {
 
 /**
  * Hook: returns patient-specific lab data from storage.
- * Falls back to mock data if no stored data exists.
+ * Returns empty lists if no stored data exists.
  *
  * Adds support for current vs past report views.
  */
 export function useUserLabData() {
-  const { user, currentPatientId, getPatientProfile } = useAuth();
+  const { user } = useAuth();
 
   const [userData, setUserData] = useState(null);
   const [allResults, setAllResults] = useState([]);
@@ -245,32 +239,26 @@ export function useUserLabData() {
     return buildDisplayData(sessionResults, allResults, null, user);
   }, [allResults, user]);
 
-  // Convenience: resolve which data to use
+  // Convenience accessors; empty until the user has uploaded results
   const getPatients = useCallback(() => {
-    if (hasRealData && userData?.patient) return [userData.patient];
-    // Fallback to mock with overlay
-    return mockPatients.filter((p) => p.id === currentPatientId).map(getPatientProfile);
-  }, [hasRealData, userData, currentPatientId, getPatientProfile]);
+    return hasRealData && userData?.patient ? [userData.patient] : [];
+  }, [hasRealData, userData]);
 
   const getLabResultsFn = useCallback((patientId) => {
-    if (hasRealData && userData?.labResults) return userData.labResults;
-    return mockLabResults.filter((l) => l.patient_id === currentPatientId);
-  }, [hasRealData, userData, currentPatientId]);
+    return (hasRealData && userData?.labResults) || [];
+  }, [hasRealData, userData]);
 
   const getAlerts = useCallback((patientId) => {
-    if (hasRealData && userData?.alerts) return userData.alerts;
-    return mockAlerts.filter((a) => a.patient_id === currentPatientId);
-  }, [hasRealData, userData, currentPatientId]);
+    return (hasRealData && userData?.alerts) || [];
+  }, [hasRealData, userData]);
 
   const getTrends = useCallback((patientId) => {
-    if (hasRealData && userData?.trends) return userData.trends;
-    return mockTrends.filter((t) => t.patient_id === currentPatientId);
-  }, [hasRealData, userData, currentPatientId]);
+    return (hasRealData && userData?.trends) || [];
+  }, [hasRealData, userData]);
 
   const getAllAlerts = useCallback(() => {
-    if (hasRealData && userData?.alerts) return userData.alerts;
-    return mockAlerts.filter((a) => a.patient_id === currentPatientId);
-  }, [hasRealData, userData, currentPatientId]);
+    return (hasRealData && userData?.alerts) || [];
+  }, [hasRealData, userData]);
 
   return {
     isLoading,

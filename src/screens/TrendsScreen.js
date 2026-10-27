@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LineChart } from 'react-native-chart-kit';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useUserLabData } from '../hooks/useUserLabData';
 import { getSeverityConfig } from '../utils/helpers';
@@ -16,7 +17,16 @@ const screenWidth = Dimensions.get('window').width;
 export default function TrendsScreen({ navigation }) {
   const { currentPatientId } = useAuth();
   const insets = useSafeAreaInsets();
-  const { getPatients, getTrends, getAlerts, getLabResultsFn } = useUserLabData();
+  const {
+    getPatients, getTrends, getAlerts, getLabResultsFn, hasRealData, isLoading, refresh,
+  } = useUserLabData();
+
+  // Reload when the tab is shown so new uploads appear
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const visiblePatients = getPatients();
   const firstPatientId = visiblePatients[0]?.id;
@@ -98,6 +108,32 @@ export default function TrendsScreen({ navigation }) {
       </Animated.View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        {!hasRealData ? (
+          !isLoading && (
+            <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.emptyCard}>
+              <Ionicons name="analytics-outline" size={40} color={Colors.teal} style={{ marginBottom: 10 }} />
+              <Text style={styles.emptyTitle}>No trends yet</Text>
+              <Text style={styles.emptySub}>
+                Upload a lab report to see your results here. Each new report adds a point,
+                so you can see how your values change over time.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate('Home', { screen: 'LabUpload' });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Upload a lab report"
+              >
+                <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                <Text style={styles.emptyBtnText}>Upload Lab Report</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )
+        ) : (
+        <>
         {/* Patient selector */}
         <Animated.View entering={FadeInDown.delay(50).springify()}>
           <ScrollView
@@ -311,6 +347,8 @@ export default function TrendsScreen({ navigation }) {
             <Text style={styles.chartPatient}>No metric trends available yet.</Text>
           )}
         </Animated.View>
+        </>
+        )}
       </ScrollView>
     </View>
   );
@@ -352,6 +390,19 @@ const styles = StyleSheet.create({
   chartHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16,
   },
+  emptyCard: {
+    marginHorizontal: 16, marginTop: 16, padding: 32, borderRadius: 20,
+    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderLight,
+    alignItems: 'center',
+  },
+  emptyTitle: { ...Typography.h3, color: Colors.navy, marginBottom: 6 },
+  emptySub: { ...Typography.bodySmall, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 18 },
+  emptyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Colors.teal, borderRadius: 16,
+    paddingVertical: 12, paddingHorizontal: 24,
+  },
+  emptyBtnText: { ...Typography.button, color: '#fff', fontSize: 14 },
   chartTitle: { fontFamily: Typography.serif, fontSize: 17, fontWeight: '700', color: Colors.navy },
   chartPatient: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
   metricTabs: { marginBottom: 12 },

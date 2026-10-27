@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { patients, reminders } from '../data/mockData';
+import { patients } from '../data/mockData';
 import { formatDate, daysUntil } from '../utils/helpers';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
@@ -14,8 +14,10 @@ export default function RemindersScreen() {
   const { currentPatientId } = useAuth();
   const insets = useSafeAreaInsets();
 
-  // Patient only sees their own reminders
-  const filteredReminders = reminders.filter(r => r.patient_id === currentPatientId);
+  // Reminders are not stored on-device yet. The demo reminders in mockData
+  // belong to a sample patient, so they are not shown as the user's own.
+  const storedReminders = [];
+  const filteredReminders = storedReminders.filter(r => r.patient_id === currentPatientId);
 
   // Sort reminders by due date
   const sortedReminders = [...filteredReminders].sort(
