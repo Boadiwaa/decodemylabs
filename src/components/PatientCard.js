@@ -91,11 +91,11 @@ const styles = StyleSheet.create({
   },
   sevLabel: { ...Typography.pill, letterSpacing: 0.5 },
   detail: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
-  desc: { fontSize: 10, color: Colors.textMuted, marginTop: 4 },
+  desc: { fontSize: 12, color: Colors.textMuted, marginTop: 4, fontFamily: Typography.sans },
   sevBarBg: { flex: 1, height: 3, backgroundColor: Colors.borderLight, borderRadius: 2 },
   sevBarFill: { height: 3, borderRadius: 2 },
   reminderBadge: {
     backgroundColor: Colors.tealLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8,
   },
-  reminderBadgeText: { ...Typography.pill, fontSize: 9, color: Colors.tealDark },
+  reminderBadgeText: { ...Typography.pill, color: Colors.tealDark },
 });

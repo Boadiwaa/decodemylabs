@@ -79,7 +79,7 @@ export default function DashboardScreen({ navigation }) {
           <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <View>
             <Text style={styles.headerTitle}>Talking<Text style={{ color: Colors.teal }}>Labs</Text></Text>
-            <Text style={styles.headerSub}>Your Labs, Explained Simply</Text>
+            <Text style={styles.headerSub}>Your lab results, in words you understand</Text>
           </View>
         </View>
         <View style={[styles.roleBadge, { backgroundColor: Colors.tealLight }]}>
@@ -160,7 +160,7 @@ export default function DashboardScreen({ navigation }) {
         {/* Section header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {activeTab === 'current' ? 'YOUR RESULTS' : 'PAST REPORTS'}
+            {activeTab === 'current' ? 'Your results' : 'Past reports'}
           </Text>
           {hasRealData && (
             <Text style={styles.sectionCount}>
@@ -323,9 +323,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   roleBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
+    fontFamily: Typography.sans,
   },
   uploadBtn: {
     flexDirection: 'row',
@@ -396,5 +397,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
   },
   pastDot: { width: 6, height: 6, borderRadius: 3 },
-  pastBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+  pastBadgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3, fontFamily: Typography.sans },
 });

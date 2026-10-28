@@ -78,8 +78,9 @@ export default function TrendChart({ trend, severity }) {
               strokeWidth: 1,
             },
             propsForLabels: {
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: '600',
+              fontFamily: Typography.sans,
             },
             fillShadowGradientFrom: sev.color,
             fillShadowGradientTo: Colors.white,
@@ -148,6 +149,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, zIndex: 10,
   },
   tooltipText: { color: '#fff', fontSize: 13, fontWeight: '700', fontFamily: Typography.serif },
-  tooltipDate: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '600' },
-  hint: { textAlign: 'center', ...Typography.caption, color: Colors.textMuted, fontSize: 10, marginTop: 8 },
+  tooltipDate: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600', fontFamily: Typography.sans },
+  hint: { textAlign: 'center', ...Typography.caption, color: Colors.textMuted, marginTop: 8 },
 });

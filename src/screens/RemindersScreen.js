@@ -58,7 +58,7 @@ export default function RemindersScreen() {
               <Text style={styles.reminderTest}>{reminder.test_name}</Text>
               {isOverdue && (
                 <View style={styles.overdueBadge}>
-                  <Text style={styles.overdueBadgeText}>OVERDUE</Text>
+                  <Text style={styles.overdueBadgeText}>Overdue</Text>
                 </View>
               )}
             </View>\n            <Text style={styles.reminderDate}>
@@ -99,7 +99,7 @@ export default function RemindersScreen() {
         <View>
           <Text style={styles.headerTitle}>Reminders</Text>
           <Text style={styles.headerSub}>
-            YOUR UPCOMING TESTS
+            Your upcoming tests
           </Text>
         </View>
         <View style={[styles.roleBadge, { backgroundColor: Colors.tealLight }]}>
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dangerBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
     borderWidth: 1, borderColor: Colors.dangerBorder,
   },
-  overdueBadgeText: { ...Typography.pill, fontSize: 8, color: Colors.danger },
+  overdueBadgeText: { ...Typography.pill, color: Colors.danger },
 
   emptyState: { alignItems: 'center', paddingTop: 60 },
   emptyTitle: { ...Typography.h4, color: Colors.navy, marginTop: 16 },

@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
-  statLabel: { ...Typography.caption, color: Colors.textMuted, fontSize: 10 },
+  statLabel: { ...Typography.caption, color: Colors.textMuted },
   statValue: { ...Typography.h3, color: Colors.navy },
   card: {
     marginTop: 12,
@@ -336,5 +336,5 @@ const styles = StyleSheet.create({
   metricRange: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
   metricRight: { alignItems: 'flex-end' },
   metricValue: { ...Typography.body, fontWeight: '700' },
-  metricTrend: { ...Typography.caption, color: Colors.textMuted, fontSize: 10 },
+  metricTrend: { ...Typography.caption, color: Colors.textMuted },
 });

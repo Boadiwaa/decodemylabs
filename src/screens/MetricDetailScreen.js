@@ -208,9 +208,9 @@ export default function MetricDetailScreen({ route, navigation }) {
     : ruleExplanations;
   const sourceLabels = ai
     ? {
-        en: 'AI EXPLANATION · GEMMA',
-        fr: ai.fr ? 'AI EXPLANATION · GEMMA' : 'STANDARD EXPLANATION',
-        ak: 'AI EXPLANATION · TRANSLATED TO TWI WHEN PLAYED',
+        en: 'AI explanation · Gemma',
+        fr: ai.fr ? 'AI explanation · Gemma' : 'Standard explanation',
+        ak: 'AI explanation · translated to Twi when played',
       }
     : null;
   const statusText = aiExplanation.status === 'generating'

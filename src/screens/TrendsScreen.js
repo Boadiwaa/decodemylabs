@@ -97,7 +97,7 @@ export default function TrendsScreen({ navigation }) {
         <View>
           <Text style={styles.headerTitle}>Trends</Text>
           <Text style={styles.headerSub}>
-            YOUR LAB TRENDS
+            Your lab trends
           </Text>
         </View>
         <View style={[styles.roleBadge, { backgroundColor: Colors.tealLight }]}>
@@ -241,7 +241,7 @@ export default function TrendsScreen({ navigation }) {
                 propsForBackgroundLines: {
                   strokeDasharray: '4,8', stroke: Colors.borderLight, strokeWidth: 1,
                 },
-                propsForLabels: { fontSize: 11, fontWeight: '600' },
+                propsForLabels: { fontSize: 12, fontWeight: '600', fontFamily: Typography.sans },
                 fillShadowGradientFrom: sev.color,
                 fillShadowGradientTo: Colors.white,
                 fillShadowGradientFromOpacity: 0.12,
@@ -258,17 +258,17 @@ export default function TrendsScreen({ navigation }) {
 
             <View style={styles.chartFooter}>
               <View style={styles.chartStat}>
-                <Text style={styles.chartStatLabel}>FIRST</Text>
+                <Text style={styles.chartStatLabel}>First</Text>
                 <Text style={styles.chartStatValue}>{first} {trend?.unit}</Text>
               </View>
               <View style={styles.chartStatDivider} />
               <View style={styles.chartStat}>
-                <Text style={styles.chartStatLabel}>LATEST</Text>
+                <Text style={styles.chartStatLabel}>Latest</Text>
                 <Text style={[styles.chartStatValue, { color: sev.color }]}>{last} {trend?.unit}</Text>
               </View>
               <View style={styles.chartStatDivider} />
               <View style={styles.chartStat}>
-                <Text style={styles.chartStatLabel}>CHANGE</Text>
+                <Text style={styles.chartStatLabel}>Change</Text>
                 <Text style={[styles.chartStatValue, {
                   color: direction === 'up' ? Colors.danger : direction === 'down' ? Colors.safe : Colors.textPrimary,
                 }]}>{changePercent > 0 ? '+' : ''}{changePercent}%</Text>
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: Colors.tealLight, borderColor: Colors.teal },
   chipAvatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  chipAvatarText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  chipAvatarText: { color: '#fff', fontSize: 12, fontWeight: '700', fontFamily: Typography.sans },
   chipName: { ...Typography.caption, fontWeight: '600', color: Colors.textSecondary },
   chipNameActive: { color: Colors.tealDark, fontWeight: '700' },
 
@@ -435,13 +435,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.tealLight,
     borderColor: Colors.teal,
   },
-  metricTabText: { ...Typography.caption, color: Colors.textSecondary, fontSize: 11 },
+  metricTabText: { ...Typography.caption, color: Colors.textSecondary },
   metricTabTextActive: { color: Colors.tealDark, fontWeight: '700' },
   changeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12,
   },
-  changeText: { ...Typography.pill, fontSize: 11 },
+  changeText: { ...Typography.pill },
 
   chartFooter: {
     flexDirection: 'row', marginTop: 16, paddingTop: 14,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.tealMuted,
   },
-  reportBtnText: { ...Typography.caption, color: Colors.tealDark, fontWeight: '700', fontSize: 11 },
+  reportBtnText: { ...Typography.caption, color: Colors.tealDark, fontWeight: '700' },
   groupLabel: {
     ...Typography.bodySmall, fontWeight: '700', color: Colors.tealDark,
     marginTop: 14, marginBottom: 6, marginHorizontal: 4,
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
   },
   overviewAvatar: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  overviewAvatarText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  overviewAvatarText: { color: '#fff', fontSize: 12, fontWeight: '700', fontFamily: Typography.sans },
   overviewName: { ...Typography.body, fontWeight: '600', color: Colors.navy },
   overviewTest: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
   overviewPct: { ...Typography.caption, fontWeight: '700' },

@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   medFields: { flexDirection: 'row', gap: 8 },
   medField: { flex: 1 },
   medFieldLabel: {
-    ...Typography.caption, color: Colors.textMuted, fontSize: 10, marginBottom: 4,
+    ...Typography.caption, color: Colors.textMuted, marginBottom: 4,
   },
   medFieldInput: {
     height: 36, borderRadius: 10,
@@ -429,6 +429,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center', paddingBottom: 20,
   },
   privacyText: {
-    ...Typography.caption, color: Colors.textMuted, fontSize: 11, textAlign: 'center',
+    ...Typography.caption, color: Colors.textMuted, textAlign: 'center',
   },
 });

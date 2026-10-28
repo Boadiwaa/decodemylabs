@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     width: 52, height: 52, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  avatarText: { color: '#fff', fontSize: 18, fontWeight: '800', fontFamily: Typography.sans },
   patientName: { ...Typography.h3, color: Colors.navy },
   patientMeta: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
   patientDesc: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 4 },
@@ -338,20 +338,20 @@ const styles = StyleSheet.create({
   labTestName: { ...Typography.body, fontWeight: '700', color: Colors.textPrimary },
   labDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
   labValue: { fontFamily: Typography.serif, fontSize: 20, fontWeight: '700' },
-  labRange: { ...Typography.caption, color: Colors.textMuted, fontSize: 10, marginTop: 2 },
+  labRange: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
   trendRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.borderLight,
   },
   trendText: { ...Typography.caption, fontWeight: '700' },
   summaryText: { ...Typography.bodySmall, color: Colors.textPrimary, lineHeight: 20 },
-  actionsTitle: { ...Typography.label, color: Colors.textSecondary, fontSize: 11, marginBottom: 8 },
+  actionsTitle: { ...Typography.label, color: Colors.textSecondary, marginBottom: 8 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   actionNumber: {
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: Colors.tealMuted, alignItems: 'center', justifyContent: 'center',
   },
-  actionNumberText: { fontSize: 10, fontWeight: '800', color: Colors.navy },
+  actionNumberText: { fontSize: 12, fontWeight: '800', color: Colors.navy, fontFamily: Typography.sans },
   actionText: { ...Typography.bodySmall, color: Colors.textPrimary, flex: 1 },
   alertCard: {
     marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 20, borderWidth: 1,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.tealLight, borderColor: Colors.teal,
   },
   trendTabText: {
-    ...Typography.pill, fontSize: 11, color: Colors.textSecondary,
+    ...Typography.pill, color: Colors.textSecondary,
   },
   trendTabTextActive: {
     color: Colors.tealDark, fontWeight: '700',
@@ -407,7 +407,6 @@ const styles = StyleSheet.create({
   },
   insightTabText: {
     ...Typography.pill,
-    fontSize: 11,
     color: Colors.textMuted,
   },
   insightTabTextActive: {

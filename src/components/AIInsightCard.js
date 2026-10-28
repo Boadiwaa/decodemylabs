@@ -124,11 +124,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.tealMuted,
   },
   aiBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
     color: Colors.tealDark,
     letterSpacing: 0.3,
-    textTransform: 'uppercase',
+    fontFamily: Typography.sans,
   },
   fallbackBadge: {
     flexDirection: 'row',
@@ -142,15 +142,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   fallbackBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.textSecondary,
     letterSpacing: 0.3,
-    textTransform: 'uppercase',
+    fontFamily: Typography.sans,
   },
   confidenceText: {
     ...Typography.caption,
-    fontSize: 10,
     color: Colors.textMuted,
   },
   refreshBtn: {
@@ -182,7 +181,6 @@ const styles = StyleSheet.create({
   },
   disclaimerText: {
     ...Typography.caption,
-    fontSize: 9,
     color: Colors.textMuted,
     flex: 1,
     lineHeight: 13,

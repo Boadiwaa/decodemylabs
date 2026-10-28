@@ -307,7 +307,6 @@ const styles = StyleSheet.create({
   disclaimerText: {
     ...Typography.caption,
     color: Colors.textMuted,
-    fontSize: 11,
     textAlign: 'center',
   },
 });

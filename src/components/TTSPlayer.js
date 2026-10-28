@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.tealLight, borderRadius: 10,
     paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8,
   },
-  sourceChipText: { fontSize: 10, fontWeight: '700', color: Colors.tealDark, letterSpacing: 0.3 },
+  sourceChipText: { fontSize: 12, fontWeight: '700', color: Colors.tealDark, letterSpacing: 0.3, fontFamily: Typography.sans },
   statusRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.borderLight,
@@ -333,10 +333,11 @@ const styles = StyleSheet.create({
     padding: 12, borderWidth: 1, borderColor: Colors.tealMuted,
   },
   akanSubtitleLabel: {
-    fontSize: 11, fontWeight: '700', color: Colors.tealDark, marginBottom: 4,
+    fontSize: 12, fontWeight: '700', color: Colors.tealDark, marginBottom: 4,
+    fontFamily: Typography.sans,
   },
   akanSubtitleText: {
     ...Typography.bodySmall, color: Colors.textPrimary, lineHeight: 20,
   },
-  akanNote: { ...Typography.caption, color: Colors.textSecondary, fontSize: 10, marginTop: 8, fontStyle: 'italic', textAlign: 'center' },
+  akanNote: { ...Typography.caption, color: Colors.textSecondary, marginTop: 8, fontStyle: 'italic', textAlign: 'center' },
 });

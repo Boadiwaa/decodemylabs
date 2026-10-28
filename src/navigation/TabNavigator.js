@@ -236,10 +236,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.teal,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '600',
     marginTop: 3,
     letterSpacing: 0.3,
+    fontFamily: Typography.sans,
   },
   tabLabelActive: {
     fontWeight: '700',

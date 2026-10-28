@@ -1,124 +1,126 @@
 /**
  * TalkingLabs Typography System
- * Inspired by Nomi Health — clean, elegant, clinical.
- * Uses system serif for headings (Georgia) and system sans-serif for body,
- * mirroring Nomi's p22-mackinac-pro serif + clean sans-serif pairing.
+ *
+ * One bundled font, Noto Sans, on iOS and Android so the app looks the same
+ * everywhere. It covers English, French and Akan (ɛ, ɔ) plus lab symbols
+ * (µ, ², ×). Registered in app.json via the expo-font plugin as "Noto Sans"
+ * with real 400/500/600/700 weights, so fontWeight works as usual.
+ *
+ * Scale (size / line height), nothing below 12 px:
+ *   display 30/38 · title 24/32 · heading 20/28 · subheading 17/24
+ *   body 16/24 · secondary 14/20 · caption 13/18 · small 12/16
  */
 
-import { Platform } from 'react-native';
-
-// Serif font for headings (closest to Nomi's Mackinac Pro)
-const serifFont = Platform.select({
-  ios: 'Georgia',
-  android: 'serif',
-});
-
-// Sans-serif for body (system default, clean and modern)
-const sansFont = Platform.select({
-  ios: 'System',
-  android: 'sans-serif',
-});
+const fontFamily = 'Noto Sans';
 
 const Typography = {
-  // Font families
-  serif: serifFont,
-  sans: sansFont,
+  // Font family (kept as two names for existing styles; both are Noto Sans)
+  serif: fontFamily,
+  sans: fontFamily,
 
-  // Heading styles (Nomi-inspired: large, bold, serif)
+  // Headings
   hero: {
-    fontFamily: serifFont,
-    fontSize: 38,
-    fontWeight: '700',
-    lineHeight: 44,
-    letterSpacing: -0.5,
-  },
-  h1: {
-    fontFamily: serifFont,
+    fontFamily,
     fontSize: 30,
     fontWeight: '700',
-    lineHeight: 36,
-    letterSpacing: -0.3,
+    lineHeight: 38,
   },
-  h2: {
-    fontFamily: serifFont,
+  h1: {
+    fontFamily,
     fontSize: 24,
     fontWeight: '700',
-    lineHeight: 30,
-    letterSpacing: -0.2,
+    lineHeight: 32,
+  },
+  h2: {
+    fontFamily,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 32,
   },
   h3: {
-    fontFamily: serifFont,
+    fontFamily,
     fontSize: 20,
-    fontWeight: '600',
-    lineHeight: 26,
+    fontWeight: '700',
+    lineHeight: 28,
   },
   h4: {
-    fontFamily: serifFont,
+    fontFamily,
     fontSize: 17,
     fontWeight: '600',
-    lineHeight: 22,
+    lineHeight: 24,
   },
 
-  // Body styles (sans-serif, clean)
+  // Body
   bodyLarge: {
+    fontFamily,
+    fontSize: 17,
+    fontWeight: '400',
+    lineHeight: 26,
+  },
+  body: {
+    fontFamily,
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
   },
-  body: {
+  bodySmall: {
+    fontFamily,
     fontSize: 14,
     fontWeight: '400',
-    lineHeight: 21,
-  },
-  bodySmall: {
-    fontSize: 13,
-    fontWeight: '400',
-    lineHeight: 19,
+    lineHeight: 20,
   },
 
-  // Label / UI styles
+  // Labels: sentence case reads more easily than spaced-out capitals
   label: {
-    fontSize: 11,
+    fontFamily,
+    fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 1.0,
-    textTransform: 'uppercase',
+    lineHeight: 20,
   },
   labelSmall: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+    fontFamily,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    letterSpacing: 0.3,
   },
   caption: {
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 16,
+    fontFamily,
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 18,
   },
 
-  // Button styles
+  // Buttons
   button: {
+    fontFamily,
     fontSize: 16,
+    fontWeight: '700',
+  },
+  buttonSmall: {
+    fontFamily,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Accents
+  stat: {
+    fontFamily,
+    fontSize: 28,
+    fontWeight: '700',
+    lineHeight: 34,
+    fontVariant: ['tabular-nums'],
+  },
+  pill: {
+    fontFamily,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
-  buttonSmall: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
 
-  // Accent styles
-  stat: {
-    fontFamily: serifFont,
-    fontSize: 28,
-    fontWeight: '700',
-    lineHeight: 32,
-  },
-  pill: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+  // Lab values: digits of equal width so numbers line up in lists
+  numbers: {
+    fontVariant: ['tabular-nums'],
   },
 };
 

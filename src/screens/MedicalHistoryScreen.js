@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', paddingBottom: 20,
   },
   privacyText: {
-    ...Typography.caption, color: Colors.textMuted, fontSize: 11,
+    ...Typography.caption, color: Colors.textMuted,
     textAlign: 'center',
   },
 });

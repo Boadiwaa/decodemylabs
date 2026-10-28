@@ -144,6 +144,7 @@ Interpretation chain: on-device model -> rule-based fallback -> demo/prewritten 
 - Keep upload progress messaging clear and friendly.
 - Include accessibility labels on interactive controls.
 - Use StyleSheet.create for styles.
+- Use the Typography styles (constants/typography.js) for text. The app font is Noto Sans (bundled, covers EN/FR/Akan); nothing below 12 px, body text 16 px, sentence case rather than all-caps labels.
 - Import order: React -> React Native -> Expo -> Reanimated -> Navigation -> Local.
 
 ## Safety

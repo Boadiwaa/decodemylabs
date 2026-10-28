@@ -163,7 +163,7 @@ export default function SecurityScreen({ navigation }) {
         <View>
           <Text style={styles.headerTitle}>Settings</Text>
           <Text style={styles.headerSub}>
-            YOUR SETTINGS
+            Your settings
           </Text>
         </View>
         <View style={[styles.roleBadgeHeader, { backgroundColor: Colors.tealLight }]}>
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   modeDesc: { ...Typography.caption, color: Colors.textSecondary, marginTop: 3 },
   modeBadge: {
     alignSelf: 'flex-start',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
     paddingHorizontal: 10,
@@ -356,6 +356,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     marginTop: 6,
+    fontFamily: Typography.sans,
   },
   roleBadgeHeader: {
     width: 36, height: 36, borderRadius: 12,

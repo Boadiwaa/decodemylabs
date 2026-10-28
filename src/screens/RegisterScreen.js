@@ -278,7 +278,6 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     ...Typography.labelSmall,
-    fontSize: 10,
   },
   title: {
     ...Typography.h2,
@@ -323,14 +322,12 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     marginTop: 4,
     marginLeft: 4,
-    fontSize: 11,
   },
   fieldHint: {
     ...Typography.caption,
     color: Colors.textMuted,
     marginTop: 4,
     marginLeft: 4,
-    fontSize: 11,
   },
   verifyBtn: {
     backgroundColor: Colors.tealLight,
@@ -341,7 +338,6 @@ const styles = StyleSheet.create({
   verifyBtnText: {
     ...Typography.buttonSmall,
     color: Colors.tealDark,
-    fontSize: 11,
   },
   verifiedBadge: {
     marginLeft: 4,
@@ -357,7 +353,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.safe,
     fontWeight: '600',
-    fontSize: 12,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -416,7 +411,6 @@ const styles = StyleSheet.create({
   disclaimerText: {
     ...Typography.caption,
     color: Colors.textMuted,
-    fontSize: 11,
     textAlign: 'center',
   },
 });

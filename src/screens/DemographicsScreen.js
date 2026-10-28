@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     flex: 1, ...Typography.body, color: Colors.navy, height: '100%',
   },
   hint: {
-    ...Typography.caption, color: Colors.textMuted, marginTop: 6, marginLeft: 4, fontSize: 11,
+    ...Typography.caption, color: Colors.textMuted, marginTop: 6, marginLeft: 4,
   },
 
   chipRow: { flexDirection: 'row', gap: 10 },
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', paddingBottom: 20,
   },
   privacyText: {
-    ...Typography.caption, color: Colors.textMuted, fontSize: 11,
+    ...Typography.caption, color: Colors.textMuted,
     textAlign: 'center', flex: 1,
   },
 
@@ -509,8 +509,8 @@ const styles = StyleSheet.create({
   dobCellSmall: { flex: 1 },
   dobCellLarge: { flex: 1.5 },
   dobCellLabel: {
-    ...Typography.caption, color: Colors.textMuted, fontSize: 10,
-    fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase',
+    ...Typography.caption, color: Colors.textMuted,
+    fontWeight: '600',
   },
   dobInput: {
     ...Typography.body, color: Colors.navy, fontWeight: '700',

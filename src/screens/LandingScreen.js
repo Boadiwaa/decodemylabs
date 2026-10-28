@@ -109,7 +109,7 @@ export default function LandingScreen({ navigation }) {
         {/* Features section */}
         <View style={styles.featuresSection}>
           <Animated.View entering={FadeInDown.delay(300).springify()}>
-            <Text style={styles.sectionLabel}>OUR SOLUTIONS</Text>
+            <Text style={styles.sectionLabel}>Our solutions</Text>
             <Text style={styles.sectionTitle}>
               Your all in one pocket lab companion.
             </Text>

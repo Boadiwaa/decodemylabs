@@ -532,7 +532,7 @@ export default function LabUploadScreen({ navigation }) {
                             style={{ alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 12 }}
                             accessibilityLabel="Done choosing test date"
                           >
-                            <Text style={{ color: Colors.teal, fontWeight: '600', fontSize: 14 }}>Done</Text>
+                            <Text style={{ color: Colors.teal, fontWeight: '600', fontSize: 14, fontFamily: Typography.sans }}>Done</Text>
                           </TouchableOpacity>
                         )}
                       </>
@@ -671,7 +671,7 @@ export default function LabUploadScreen({ navigation }) {
                     onPress={() => setShowDatePicker(false)}
                     style={{ alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 12 }}
                   >
-                    <Text style={{ color: Colors.teal, fontWeight: '600', fontSize: 14 }}>Done</Text>
+                    <Text style={{ color: Colors.teal, fontWeight: '600', fontSize: 14, fontFamily: Typography.sans }}>Done</Text>
                   </TouchableOpacity>
                 )}
               </>
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
   },
   sevDot: { width: 10, height: 10, borderRadius: 5 },
   resultTestName: { ...Typography.bodySmall, fontWeight: '600', color: Colors.navy },
-  resultRange: { ...Typography.caption, color: Colors.textMuted, marginTop: 2, fontSize: 11 },
+  resultRange: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
   resultValue: { ...Typography.body, fontWeight: '700', fontSize: 16 },
   deleteResultBtn: { padding: 4, marginLeft: 4 },
 
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   uploadTitle: { ...Typography.body, fontWeight: '700', color: Colors.navy, marginBottom: 2 },
-  uploadDesc: { ...Typography.caption, color: Colors.textMuted, fontSize: 11 },
+  uploadDesc: { ...Typography.caption, color: Colors.textMuted },
 
   // Reports list
   reportsSection: { marginBottom: 24 },
@@ -957,8 +957,8 @@ const styles = StyleSheet.create({
   reportThumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: Colors.bgSecondary },
   pdfThumb: { alignItems: 'center', justifyContent: 'center' },
   reportName: { ...Typography.bodySmall, fontWeight: '600', color: Colors.navy },
-  reportDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 2, fontSize: 11 },
-  reportTapHint: { ...Typography.caption, color: Colors.teal, marginTop: 2, fontSize: 10, fontWeight: '500' },
+  reportDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
+  reportTapHint: { ...Typography.caption, color: Colors.teal, marginTop: 2, fontWeight: '500' },
 
   // Image viewer modal
   viewerOverlay: {
@@ -988,6 +988,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center', paddingBottom: 20, marginTop: 16,
   },
   privacyText: {
-    ...Typography.caption, color: Colors.textMuted, fontSize: 11, textAlign: 'center',
+    ...Typography.caption, color: Colors.textMuted, textAlign: 'center',
   },
 });
