@@ -36,6 +36,7 @@ import {
   parseLabReportFromImage, parseLabReportWithModel, recognizeTextFromImage,
 } from '../services/LabReportParser';
 import { classifySeverity, REFERENCE_RANGES } from '../domain/reference_ranges';
+import { sortByLabGroup } from '../domain/lab_groups';
 import { formatDate, parseISODate, toISODate } from '../utils/dates';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
@@ -542,7 +543,7 @@ export default function LabUploadScreen({ navigation }) {
                 <Text style={styles.extractedTitle}>
                   ✅ Extracted Lab Values ({parsedResults.length})
                 </Text>
-                {parsedResults.map((r, i) => (
+                {sortByLabGroup(parsedResults).map((r, i) => (
                   <Animated.View
                     key={r.id}
                     entering={FadeInRight.delay(i * 80).springify()}

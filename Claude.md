@@ -56,6 +56,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - reference_ranges.js - Deterministic classification and deviation
 - personalization.js - Deterministic medication and condition-aware notes
 - interpretation_rules.js - Trend and urgency helpers
+- lab_groups.js - Body-system groups with patient-friendly titles; use for ordering result lists
 
 ### AI Agents
 - types.js - Agent output interface and validation helpers

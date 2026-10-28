@@ -9,6 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useUserLabData } from '../hooks/useUserLabData';
 import { getSeverityConfig } from '../utils/helpers';
+import { getLabGroup, sortByLabGroup } from '../domain/lab_groups';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -40,7 +41,8 @@ export default function TrendsScreen({ navigation }) {
   }, [selectedPatient, firstPatientId]);
 
   const patient = visiblePatients.find((p) => p.id === selectedPatient) || visiblePatients[0];
-  const patientTrends = getTrends(selectedPatient) || [];
+  // Ordered by body system so related tests sit together (see domain/lab_groups.js).
+  const patientTrends = sortByLabGroup(getTrends(selectedPatient) || []);
   const patientAlerts = getAlerts(selectedPatient) || [];
   const patientLabResults = getLabResultsFn(selectedPatient) || [];
 
@@ -310,9 +312,14 @@ export default function TrendsScreen({ navigation }) {
           {metricSummary.map((entry, i) => {
             const { trend: metricTrend, pct, direction: metricDirection, severity } = entry;
             const s = getSeverityConfig(severity);
+            const group = getLabGroup(metricTrend.test_name);
+            const startsGroup = i === 0 || getLabGroup(metricSummary[i - 1].trend.test_name).key !== group.key;
 
             return (
               <Animated.View key={`${metricTrend.test_name}_${i}`} entering={FadeInDown.delay(300 + i * 60).springify()}>
+                {startsGroup && (
+                  <Text style={styles.groupLabel} accessibilityRole="header">{group.title}</Text>
+                )}
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => {
@@ -466,6 +473,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.tealMuted,
   },
   reportBtnText: { ...Typography.caption, color: Colors.tealDark, fontWeight: '700', fontSize: 11 },
+  groupLabel: {
+    ...Typography.bodySmall, fontWeight: '700', color: Colors.tealDark,
+    marginTop: 14, marginBottom: 6, marginHorizontal: 4,
+  },
   overviewRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderLight,

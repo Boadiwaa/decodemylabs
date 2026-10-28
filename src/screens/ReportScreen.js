@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useUserLabData } from '../hooks/useUserLabData';
 import { getSeverityConfig, getTrendChange, formatDate } from '../utils/helpers';
+import { groupByLabGroup } from '../domain/lab_groups';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -171,45 +172,64 @@ export default function ReportScreen({ route, navigation }) {
         )}
 
         <Animated.View entering={FadeInDown.delay(180).springify()} style={styles.card}>
-          <Text style={styles.cardTitle}>Metric-by-Metric Breakdown</Text>
+          <Text style={styles.cardTitle}>Your results, by body system</Text>
           {labResults.length === 0 ? (
             <Text style={styles.emptyText}>No metrics are available yet. Upload a report to populate this view.</Text>
           ) : (
-            labResults.map((lab, idx) => {
-              const severity = resolveSeverity(lab, alerts[idx]);
-              const sev = getSeverityConfig(severity);
-              const trend = trends.find((t) => t.test_name === lab.test_name);
-              const trendChange = trend?.values?.length ? getTrendChange(trend.values) : null;
-
+            groupByLabGroup(
+              labResults.map((lab, idx) => ({ lab, severity: resolveSeverity(lab, alerts[idx]) })),
+              (row) => row.lab.test_name,
+            ).map((group) => {
+              const outOfRange = group.items.filter((row) => row.severity !== 'safe').length;
               return (
-                <TouchableOpacity
-                  key={`${lab.id || lab.test_name}_${idx}`}
-                  style={styles.metricRow}
-                  activeOpacity={0.75}
-                  accessibilityLabel={`Open ${lab.test_name} details`}
-                  onPress={() => openMetric(lab.test_name)}
-                >
-                  <View style={styles.metricLeft}>
-                    <View style={[styles.metricDot, { backgroundColor: sev.color }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.metricName}>{lab.test_name}</Text>
-                      <Text style={styles.metricRange}>Normal: {lab.normal_range}</Text>
+                <View key={group.key} style={styles.group}>
+                  <View style={styles.groupHeader} accessibilityRole="header">
+                    <View style={styles.groupIcon}>
+                      <Ionicons name={group.icon} size={16} color={Colors.tealDark} />
                     </View>
+                    <Text style={styles.groupTitle}>{group.title}</Text>
+                    <Text style={[styles.groupStatus, outOfRange > 0 && { color: Colors.warn }]}>
+                      {outOfRange > 0 ? `${outOfRange} to look at` : 'All in range'}
+                    </Text>
                   </View>
 
-                  <View style={styles.metricRight}>
-                    <Text style={[styles.metricValue, { color: sev.color }]}>{lab.result_value}</Text>
-                    {trendChange && trendChange.direction !== 'stable' ? (
-                      <Text style={styles.metricTrend}>
-                        {trendChange.direction === 'up' ? 'Rising' : 'Falling'} {trendChange.pct}%
-                      </Text>
-                    ) : (
-                      <Text style={styles.metricTrend}>Stable trend</Text>
-                    )}
-                  </View>
+                  {group.items.map(({ lab, severity }, idx) => {
+                    const sev = getSeverityConfig(severity);
+                    const trend = trends.find((t) => t.test_name === lab.test_name);
+                    const trendChange = trend?.values?.length ? getTrendChange(trend.values) : null;
 
-                  <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-                </TouchableOpacity>
+                    return (
+                      <TouchableOpacity
+                        key={`${lab.id || lab.test_name}_${idx}`}
+                        style={styles.metricRow}
+                        activeOpacity={0.75}
+                        accessibilityLabel={`Open ${lab.test_name} details`}
+                        onPress={() => openMetric(lab.test_name)}
+                      >
+                        <View style={styles.metricLeft}>
+                          <View style={[styles.metricDot, { backgroundColor: sev.color }]} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.metricName}>{lab.test_name}</Text>
+                            <Text style={styles.metricRange}>Normal: {lab.normal_range}</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.metricRight}>
+                          <Text style={[styles.metricValue, { color: sev.color }]}>{lab.result_value}</Text>
+                          {trendChange && trendChange.direction !== 'stable' ? (
+                            <Text style={styles.metricTrend}>
+                              {trendChange.direction === 'up' ? 'Rising' : 'Falling'} {trendChange.pct}%
+                            </Text>
+                          ) : (
+                            <Text style={styles.metricTrend}>Stable trend</Text>
+                          )}
+                        </View>
+
+                        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               );
             })
           )}
@@ -291,6 +311,17 @@ const styles = StyleSheet.create({
   findingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   findingText: { ...Typography.bodySmall, color: Colors.textPrimary, flex: 1 },
   emptyText: { ...Typography.bodySmall, color: Colors.textSecondary },
+  group: { marginTop: 8 },
+  groupHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 10,
+  },
+  groupIcon: {
+    width: 28, height: 28, borderRadius: 9,
+    backgroundColor: Colors.tealLight, alignItems: 'center', justifyContent: 'center',
+  },
+  groupTitle: { ...Typography.body, fontWeight: '700', color: Colors.navy, flex: 1 },
+  groupStatus: { ...Typography.caption, fontWeight: '600', color: Colors.safe },
   metricRow: {
     flexDirection: 'row',
     alignItems: 'center',
