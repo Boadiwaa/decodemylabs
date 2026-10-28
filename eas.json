@@ -27,7 +27,8 @@
         "EXPO_PUBLIC_MODEL_PROVIDER": "local",
         "EXPO_PUBLIC_LOCAL_INFERENCE_RUNTIME": "litertlm",
         "EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD": "false",
-        "EXPO_PUBLIC_ALLOW_ANDROID_LLAMA_FALLBACK": "false"
+        "EXPO_PUBLIC_ALLOW_ANDROID_LLAMA_FALLBACK": "false",
+        "EXPO_PUBLIC_FEEDBACK_EMAIL": "boadiwaa@pm.me"
       }
     },
     "production": {
@@ -42,7 +43,8 @@
         "EXPO_PUBLIC_MODEL_PROVIDER": "local",
         "EXPO_PUBLIC_LOCAL_INFERENCE_RUNTIME": "litertlm",
         "EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD": "false",
-        "EXPO_PUBLIC_ALLOW_ANDROID_LLAMA_FALLBACK": "false"
+        "EXPO_PUBLIC_ALLOW_ANDROID_LLAMA_FALLBACK": "false",
+        "EXPO_PUBLIC_FEEDBACK_EMAIL": "boadiwaa@pm.me"
       },
       "autoIncrement": true
     }
