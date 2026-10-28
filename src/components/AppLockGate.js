@@ -14,11 +14,21 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { getAppSettings } from '../services/PatientStorage';
-import { authenticate } from '../services/AppLock';
+import { authenticate, getLockAvailability } from '../services/AppLock';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
 const LOCK_AFTER_MS = 60 * 1000;
+
+/**
+ * Lock only when App lock is on and the phone has a screen lock to check.
+ * If the screen lock was removed there is nothing to verify, and locking
+ * would shut the patient out.
+ */
+async function shouldLock(userId) {
+  const settings = await getAppSettings(userId);
+  return settings.appLock && (await getLockAvailability()).available;
+}
 
 export default function AppLockGate({ userId, children }) {
   const { logout } = useAuth();
@@ -30,9 +40,9 @@ export default function AppLockGate({ userId, children }) {
 
   useEffect(() => {
     let active = true;
-    getAppSettings(userId).then((settings) => {
+    shouldLock(userId).then((lock) => {
       if (!active) return;
-      setLocked(settings.appLock);
+      setLocked(lock);
       setChecking(false);
     });
     return () => { active = false; };
@@ -47,7 +57,7 @@ export default function AppLockGate({ userId, children }) {
       if (state !== 'active' || backgroundedAt.current == null) return;
       const away = Date.now() - backgroundedAt.current;
       backgroundedAt.current = null;
-      if (away >= LOCK_AFTER_MS && (await getAppSettings(userId)).appLock) {
+      if (away >= LOCK_AFTER_MS && (await shouldLock(userId))) {
         setMessage('');
         setLocked(true);
       }
@@ -76,10 +86,19 @@ export default function AppLockGate({ userId, children }) {
     if (locked && !checking) unlock();
   }, [locked, checking, unlock]);
 
+  const covered = checking || locked;
+
   return (
     <View style={{ flex: 1 }}>
-      {children}
-      {(checking || locked) && (
+      {/* While locked, hide the screens underneath from screen readers too. */}
+      <View
+        style={{ flex: 1 }}
+        importantForAccessibility={covered ? 'no-hide-descendants' : 'auto'}
+        accessibilityElementsHidden={covered}
+      >
+        {children}
+      </View>
+      {covered && (
         <View style={styles.cover} accessibilityViewIsModal>
           {!checking && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.content}>

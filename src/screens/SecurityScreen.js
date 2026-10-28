@@ -44,15 +44,17 @@ export default function SecurityScreen({ navigation }) {
   const handleAppLockToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const turningOn = !appLock;
-    if (turningOn) {
-      const availability = await getLockAvailability();
-      if (!availability.available) {
-        Alert.alert('App lock', availability.message);
-        return;
-      }
+    const availability = await getLockAvailability();
+    if (turningOn && !availability.available) {
+      Alert.alert('App lock', availability.message);
+      return;
     }
-    const result = await authenticate(turningOn ? 'Turn on app lock' : 'Turn off app lock');
-    if (!result.success) return;
+    // With no phone screen lock there is nothing to check, so turning the lock
+    // off is allowed; otherwise the patient could never switch it off.
+    if (availability.available) {
+      const result = await authenticate(turningOn ? 'Turn on app lock' : 'Turn off app lock');
+      if (!result.success) return;
+    }
     await saveAppSettings(user.id, { appLock: turningOn });
     setAppLock(turningOn);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

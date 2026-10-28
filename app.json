@@ -21,6 +21,7 @@
     "android": {
       "package": "com.talkinglabs.app",
       "largeHeap": true,
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4FAFA"
