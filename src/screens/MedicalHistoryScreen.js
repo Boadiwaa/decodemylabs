@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: 12,
     backgroundColor: Colors.indigoLight, borderRadius: 16,
     padding: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: '#D0D1F0',
+    borderWidth: 1, borderColor: Colors.tealMuted,
   },
   whyTitle: {
     ...Typography.body, fontWeight: '700', color: Colors.navy, marginBottom: 4,

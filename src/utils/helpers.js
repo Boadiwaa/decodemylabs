@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { parseISODate } from './dates';
+import Colors from '../constants/colors';
 
 /** Local calendar date for YYYY-MM-DD strings, otherwise whatever Date makes of it. */
 function toLocalDate(value) {
@@ -42,11 +43,11 @@ export function getTrendChange(trendValues) {
 export function getSeverityConfig(severity) {
   switch (severity) {
     case 'danger':
-      return { label: 'Critical', color: '#D98E93', bg: '#FDF2F3', border: '#F5D5D8', icon: 'alert-circle' };
+      return { label: 'Critical', color: Colors.danger, bg: Colors.dangerBg, border: Colors.dangerBorder, icon: 'alert-circle' };
     case 'warn':
-      return { label: 'Elevated', color: '#D4AA6A', bg: '#FDF8F0', border: '#F0DFC4', icon: 'alert-triangle' };
+      return { label: 'Elevated', color: Colors.warn, bg: Colors.warnBg, border: Colors.warnBorder, icon: 'warning' };
     default:
-      return { label: 'Normal', color: '#7BBFA0', bg: '#F0FAF5', border: '#C5E8D8', icon: 'checkmark-circle' };
+      return { label: 'Normal', color: Colors.safe, bg: Colors.safeBg, border: Colors.safeBorder, icon: 'checkmark-circle' };
   }
 }
 

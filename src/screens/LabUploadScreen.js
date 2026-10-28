@@ -721,7 +721,7 @@ export default function LabUploadScreen({ navigation }) {
             <Animated.View entering={FadeInDown.delay(280).springify()}>
               <TouchableOpacity
                 onPress={handleGallery}
-                style={[styles.uploadCard, { borderColor: '#D0D1F0' }]}
+                style={[styles.uploadCard, { borderColor: Colors.tealMuted }]}
                 activeOpacity={0.7}
                 disabled={uploading}
                 accessibilityLabel="Choose photo from gallery"

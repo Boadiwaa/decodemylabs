@@ -1,64 +1,67 @@
 /**
  * TalkingLabs Color Palette
- * Inspired by Nomi Health — calm, clean, clinical elegance with teal accents.
+ * A single teal ramp: #F3FBFB → #CDEEEE → #6FD0CC → #1A9E9B → #0C4E4C,
+ * plus one in-between teal (#15807D) so buttons and small teal text meet
+ * WCAG AA contrast. Text/background pairs below are AA (4.5:1) unless noted.
  */
 
 const Colors = {
   // Primary brand
-  teal: '#2BB5A8',
-  tealDark: '#1E998E',
-  tealLight: '#E0F5F3',
-  tealMuted: '#A3E0DA',
-  tealVivid: '#17A497',
+  teal: '#15807D',        // buttons (white text 4.8:1), links, small teal text, icons
+  tealDark: '#106B68',    // teal text on tealLight surfaces (5.1:1)
+  tealLight: '#CDEEEE',   // tinted cards, chips, selected states, header band
+  tealMuted: '#6FD0CC',   // chart lines, progress, borders — decoration only
+  tealVivid: '#1A9E9B',   // brand accent: logo, large headings, large icons (3:1, large only)
 
-  // Navy / Dark blues (text hierarchy)
-  navy: '#0F2B46',
-  navyLight: '#1A3D5C',
-  navyMuted: '#2D5478',
+  // Deep teal (text hierarchy; names kept from the earlier navy palette)
+  navy: '#0C4E4C',
+  navyLight: '#0E5F5D',
+  navyMuted: '#106B68',
 
   // Legacy blue (kept for continuity)
   blue: '#0072E3',
   blueLight: '#EFF6FF',
 
-  // Severity / Status (pastel palette)
-  danger: '#D98E93',
-  dangerBg: '#FDF2F3',
-  dangerBorder: '#F5D5D8',
+  // Severity / Status: deep colours for text and dots, soft backgrounds.
+  // Kept distinct from the brand teal so "normal" never reads as decoration.
+  danger: '#B4474F',
+  dangerBg: '#FBEDEE',
+  dangerBorder: '#F0C9CC',
 
-  warn: '#D4AA6A',
-  warnBg: '#FDF8F0',
-  warnBorder: '#F0DFC4',
+  warn: '#8A5A12',
+  warnBg: '#FBF4E6',
+  warnBorder: '#EED9B3',
 
-  safe: '#7BBFA0',
-  safeBg: '#F0FAF5',
-  safeBorder: '#C5E8D8',
+  safe: '#2E7A55',
+  safeBg: '#EAF6EF',
+  safeBorder: '#BFE3CF',
 
-  // Patient / info mode
-  indigo: '#9B9EE0',
-  indigoLight: '#F0F0FC',
+  // Onboarding accent (was indigo; now part of the teal ramp)
+  indigo: '#15807D',
+  indigoLight: '#E6F5F5',
 
   // Backgrounds
-  bgPrimary: '#F4FAFA',
+  bgPrimary: '#F3FBFB',
   bgCard: '#FFFFFF',
-  bgSecondary: '#EDF4F3',
-  bgWarm: '#EAF7F5',
+  bgSecondary: '#E6F5F5',
+  bgWarm: '#E6F5F5',
   white: '#FFFFFF',
 
   // Borders
-  border: '#E8EDEF',
-  borderLight: '#F1F5F5',
+  border: '#D5E9E9',
+  borderLight: '#E6F2F2',
 
   // Text
-  textPrimary: '#0F2B46',
-  textSecondary: '#5A7184',
-  textMuted: '#94A3B0',
+  textPrimary: '#0C4E4C',
+  textSecondary: '#4F6B6A',
+  textMuted: '#5E7877',
   textWhite: '#FFFFFF',
 
   // Shadows (use as shadowColor)
-  shadow: '#0F2B46',
+  shadow: '#0C4E4C',
 
   // Overlays
-  overlayDark: 'rgba(15, 43, 70, 0.92)',
+  overlayDark: 'rgba(12, 78, 76, 0.92)',
   overlayLight: 'rgba(255, 255, 255, 0.92)',
 };
 

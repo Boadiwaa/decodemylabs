@@ -17,6 +17,7 @@ import MedicalHistoryScreen from './src/screens/MedicalHistoryScreen';
 import DrugHistoryScreen from './src/screens/DrugHistoryScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import Toast from './src/components/Toast';
+import Colors from './src/constants/colors';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,7 +27,7 @@ function AppNavigator() {
   if (isLoading) {
     return (
       <View style={loadingStyles.container}>
-        <ActivityIndicator size="large" color="#2BB5A8" />
+        <ActivityIndicator size="large" color={Colors.teal} />
       </View>
     );
   }
@@ -36,7 +37,7 @@ function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#F4FAFA' },
+          contentStyle: { backgroundColor: Colors.bgPrimary },
           animation: 'slide_from_right',
         }}
       >
@@ -119,6 +120,6 @@ const loadingStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F4FAFA',
+    backgroundColor: Colors.bgPrimary,
   },
 });

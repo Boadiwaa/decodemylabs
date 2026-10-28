@@ -18,6 +18,7 @@ import {
   buildTrendFromResults,
 } from '../services/PatientStorage';
 import { classifySeverity } from '../domain/reference_ranges';
+import Colors from '../constants/colors';
 
 function parseNumericValue(resultValue) {
   const match = String(resultValue || '').match(/-?\d+\.?\d*/);
@@ -129,7 +130,7 @@ function buildDisplayData(storedResults, allResults, profile, user) {
     gender: profile?.sex || 'Not specified',
     profile_description: buildProfileDesc(profile),
     initials,
-    color: '#2BB5A8',
+    color: Colors.teal,
   };
 
   return { patient, labResults: sortedLabResults, alerts: sortedAlerts, trends: sortedTrends };
