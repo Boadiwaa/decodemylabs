@@ -14,6 +14,7 @@ import { buildPersonalizationInsights } from '../domain/personalization';
 import { getSeverityConfig, formatDate } from '../utils/helpers';
 import TrendChart from '../components/TrendChart';
 import TTSPlayer from '../components/TTSPlayer';
+import ExplanationFeedback from '../components/ExplanationFeedback';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -321,6 +322,16 @@ export default function MetricDetailScreen({ route, navigation }) {
           sourceLabels={sourceLabels}
           statusText={statusText}
         />
+
+        {aiExplanation.status !== 'generating' && (
+          <ExplanationFeedback
+            userId={user?.id}
+            // List ids are positions, so key by what identifies the result itself.
+            resultId={`${selectedResult.test_name}|${selectedResult.date}|${selectedResult.result_value}`}
+            source={ai ? 'gemma' : 'standard'}
+            onTellUsMore={() => navigation.navigate('Feedback', { topic: 'explanation' })}
+          />
+        )}
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.card}>
           <Text style={styles.cardTitle}>Next steps</Text>

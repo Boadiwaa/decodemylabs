@@ -27,6 +27,7 @@ const KEYS = {
   labResults: (uid) => `@ll_lab_results_${uid}`,
   explanations: (uid) => `@ll_explanations_${uid}`,
   settings: (uid) => `@ll_settings_${uid}`,
+  explanationRatings: (uid) => `@ll_explanation_ratings_${uid}`,
 };
 
 // Health data included in backups. Settings (e.g. app lock) stay with the device.
@@ -342,6 +343,38 @@ export async function getAppSettings(userId) {
 export async function saveAppSettings(userId, changes) {
   const current = await getAppSettings(userId);
   return _set(KEYS.settings(userId), { ...current, ...changes });
+}
+
+// --------------- Explanation ratings ---------------
+
+/**
+ * "Was this helpful?" answers, keyed by result id. Kept on this phone only;
+ * the feedback message includes just the counts, never the results.
+ * @returns {Promise<Object<string, { helpful: boolean, source: 'gemma'|'standard', at: string }>>}
+ */
+export async function getExplanationRatings(userId) {
+  return (await _get(KEYS.explanationRatings(userId))) || {};
+}
+
+/** Save (or with rating = null, clear) the answer for one result's explanation. */
+export async function saveExplanationRating(userId, resultId, rating) {
+  const all = await getExplanationRatings(userId);
+  if (rating) all[resultId] = { ...rating, at: new Date().toISOString() };
+  else delete all[resultId];
+  return _set(KEYS.explanationRatings(userId), all);
+}
+
+/** Counts for the feedback message, split by explanation source. */
+export function summarizeExplanationRatings(ratings) {
+  const summary = {
+    gemma: { helpful: 0, notHelpful: 0 },
+    standard: { helpful: 0, notHelpful: 0 },
+  };
+  for (const r of Object.values(ratings || {})) {
+    const bucket = summary[r.source === 'gemma' ? 'gemma' : 'standard'];
+    bucket[r.helpful ? 'helpful' : 'notHelpful'] += 1;
+  }
+  return summary;
 }
 
 // --------------- Backup ---------------

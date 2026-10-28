@@ -8,11 +8,16 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useModel } from '../context/ModelContext';
 import {
   getAppSettings, getDrugHistory, getMedicalHistory, saveAppSettings,
 } from '../services/PatientStorage';
 import { authenticate, getLockAvailability } from '../services/AppLock';
 import { exportBackup, pickBackup, restoreBackup } from '../services/DataBackup';
+import { APP_VERSION } from '../services/Feedback';
+import llamaService from '../services/LlamaService';
+import { formatGB, MODEL_DOWNLOAD } from '../services/ModelSetup';
+import ModelDownloadCard from '../components/ModelDownloadCard';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -25,7 +30,9 @@ function savedSummary(items, singular, plural) {
 
 export default function SecurityScreen({ navigation }) {
   const { user, logout } = useAuth();
+  const { modelStatus, needsDownload, removeModel } = useModel();
   const insets = useSafeAreaInsets();
+  const deviceSupport = llamaService.checkDeviceCanRunLiteRT();
   const [conditions, setConditions] = useState([]);
   const [medicines, setMedicines] = useState([]);
 
@@ -132,6 +139,25 @@ export default function SecurityScreen({ navigation }) {
       ],
     );
   }, [user?.id]);
+
+  const handleRemoveModel = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Remove Gemma AI?',
+      `This frees ${formatGB(MODEL_DOWNLOAD.bytes)} on your phone. You'll get the standard explanations `
+        + 'until you download it again. Your results and saved explanations are kept.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: removeModel },
+      ],
+    );
+  }, [removeModel]);
+
+  const modelDetail = modelStatus === 'ready' ? 'On this phone. Works without internet.'
+    : !deviceSupport.ok ? "Not available on this phone. You'll get the standard explanations."
+      : modelStatus === 'loading' ? 'Loading…'
+        : modelStatus === 'error' ? "Couldn't start on this phone. You'll get the standard explanations."
+          : 'Not set up yet';
 
   const dataItems = [
     { id: 'export', label: 'Save a backup', detail: 'Reports, results, conditions and medicines', icon: 'download', onPress: handleExport },
@@ -285,11 +311,70 @@ export default function SecurityScreen({ navigation }) {
           </Text>
         </Animated.View>
 
+        {/* Gemma AI */}
+        <Animated.View entering={FadeInDown.delay(270).springify().damping(18)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Gemma AI</Text>
+          {needsDownload && modelStatus === 'idle' ? (
+            <ModelDownloadCard style={styles.modelCard} dismissible={false} />
+          ) : (
+            <View style={styles.sectionCard}>
+              <View style={styles.settingRow}>
+                <View style={[styles.settingIcon, { backgroundColor: Colors.tealLight }]}>
+                  <Ionicons name="sparkles" size={18} color={Colors.tealDark} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingLabel}>Detailed explanations</Text>
+                  <Text style={styles.settingDetail}>{modelDetail}</Text>
+                </View>
+                {deviceSupport.ok && (modelStatus === 'ready' || modelStatus === 'error') && (
+                  <TouchableOpacity
+                    onPress={handleRemoveModel}
+                    style={styles.inlineBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove Gemma AI to free ${formatGB(MODEL_DOWNLOAD.bytes)}`}
+                  >
+                    <Text style={styles.inlineBtnText}>Remove</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
+          <Text style={styles.sectionHint}>
+            Gemma runs on your phone, so your results are never sent anywhere to be explained.
+          </Text>
+        </Animated.View>
+
+        {/* Feedback */}
+        <Animated.View entering={FadeInDown.delay(330).springify().damping(18)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Help us improve</Text>
+          <View style={styles.sectionCard}>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.navigate('Feedback');
+              }}
+              style={styles.settingRow}
+              accessibilityRole="button"
+              accessibilityLabel="Send feedback. Tell us what's working and what isn't"
+            >
+              <View style={[styles.settingIcon, { backgroundColor: Colors.tealLight }]}>
+                <Ionicons name="chatbubbles" size={18} color={Colors.tealDark} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingLabel}>Send feedback</Text>
+                <Text style={styles.settingDetail}>Tell us what's working and what isn't</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
         {/* About card */}
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.aboutCard}>
           <Image source={require('../../assets/icon.png')} style={styles.aboutLogo} />
           <Text style={styles.aboutName}>TalkingLabs</Text>
-          <Text style={styles.aboutVersion}>Version 1.0.0</Text>
+          <Text style={styles.aboutVersion}>Version {APP_VERSION}</Text>
           <Text style={styles.aboutDisclaimer}>
             This app provides educational health information only.{'\n'}
             Always consult a licensed healthcare provider for medical decisions.
@@ -382,6 +467,9 @@ const styles = StyleSheet.create({
   },
   settingLabel: { ...Typography.body, color: Colors.navy, flex: 1 },
   settingDetail: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
+  modelCard: { marginHorizontal: 0, marginTop: 0 },
+  inlineBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: Colors.bgSecondary },
+  inlineBtnText: { ...Typography.buttonSmall, color: Colors.danger },
   sectionHint: { ...Typography.caption, color: Colors.textMuted, marginTop: 8, marginLeft: 4 },
 
   aboutCard: {

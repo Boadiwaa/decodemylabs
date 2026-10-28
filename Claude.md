@@ -71,7 +71,8 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - DataBackup.js - Export a backup file via the share sheet and restore one (not encrypted)
 - AppLock.js - Biometric / phone PIN check via expo-local-authentication
 - AkanTTSService.js - Akan TTS support
-- ModelSetup.js - Model setup utilities
+- ModelSetup.js - One-time Gemma LiteRT model download on Android (pinned Hugging Face revision, resumable, size-checked)
+- Feedback.js - Builds the feedback message and opens the email app or share sheet
 
 ### Screens
 - DashboardScreen.js - Main dashboard entry
@@ -82,6 +83,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - DemographicsScreen.js - Demographics onboarding
 - MedicalHistoryScreen.js - Chronic conditions, including free-text "other" conditions; onboarding step, and editable later from Settings → My health
 - DrugHistoryScreen.js - Medications; onboarding step, and editable later from Settings → My health
+- FeedbackScreen.js - Rating, topic and comment form; from Settings and under explanations
 - PatientDetailScreen.js - Legacy detail screen; registered in navigation but not linked
 
 ### Components
@@ -91,6 +93,8 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - ModelStatusBar.js - Model readiness bar
 - Toast.js - Toast feedback
 - AppLockGate.js - Covers the app until unlock when App lock is on
+- ModelDownloadCard.js - Offers the Gemma download and shows its progress
+- ExplanationFeedback.js - "Was this explanation helpful?" thumbs, saved on-device
 
 ### Native Modules
 - modules/expo-ocr - On-device OCR (Apple Vision / ML Kit)

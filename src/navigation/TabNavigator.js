@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import DashboardScreen from '../screens/DashboardScreen';
 import PatientDetailScreen from '../screens/PatientDetailScreen';
 import ReportScreen from '../screens/ReportScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 import MetricDetailScreen from '../screens/MetricDetailScreen';
 import TrendsScreen from '../screens/TrendsScreen';
 import RemindersScreen from '../screens/RemindersScreen';
@@ -78,6 +79,7 @@ function HomeStackNavigator() {
         <HomeStack.Screen name="MetricDetail" component={MetricDetailScreen} />
         <HomeStack.Screen name="PatientDetail" component={PatientDetailScreen} />
         <HomeStack.Screen name="LabUpload" component={LabUploadScreen} />
+        <HomeStack.Screen name="Feedback" component={FeedbackScreen} />
       </HomeStack.Navigator>
     </SwipeTabWrapper>
   );
@@ -91,6 +93,7 @@ function TrendsStackNavigator() {
         <TrendsStack.Screen name="Report" component={ReportScreen} />
         <TrendsStack.Screen name="MetricDetail" component={MetricDetailScreen} />
         <TrendsStack.Screen name="PatientDetail" component={PatientDetailScreen} />
+        <TrendsStack.Screen name="Feedback" component={FeedbackScreen} />
       </TrendsStack.Navigator>
     </SwipeTabWrapper>
   );
@@ -109,6 +112,7 @@ function SettingsStackNavigator() {
     <SwipeTabWrapper tabName="Settings">
       <SettingsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <SettingsStack.Screen name="SettingsMain" component={SecurityScreen} />
+        <SettingsStack.Screen name="Feedback" component={FeedbackScreen} />
         <SettingsStack.Screen
           name="EditMedicalHistory"
           component={MedicalHistoryScreen}
