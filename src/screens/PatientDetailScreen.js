@@ -109,7 +109,7 @@ export default function PatientDetailScreen({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.patientName}>{p.name}</Text>
               <Text style={styles.patientMeta}>
-                {getAge(p.dob)}y · {p.gender} · DOB: {formatDate(p.dob)}
+                {p.dob ? `${getAge(p.dob)}y · ` : ''}{p.gender}{p.dob ? ` · DOB: ${formatDate(p.dob)}` : ''}
               </Text>
               <Text style={styles.patientDesc}>{p.profile_description}</Text>
             </View>

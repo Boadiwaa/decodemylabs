@@ -98,7 +98,8 @@ function buildUserPrompt({ patient, lab, trend, mode, patientContext, outputInst
 
   // Prefer the stored date of birth; display records may carry a placeholder.
   const dob = patientContext ? patientContext.profile?.dob : patient.dob;
-  const ageLine = dob ? `${getAge(dob)} years` : 'Not provided';
+  const age = getAge(dob);
+  const ageLine = age != null ? `${age} years` : 'Not provided';
 
   return `Analyze the following lab result for a patient:
 

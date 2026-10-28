@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { getSeverityConfig, getTrendChange, daysUntil, getAge } from '../utils/helpers';
+import { getSeverityConfig, getTrendChange } from '../utils/helpers';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 

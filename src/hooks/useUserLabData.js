@@ -125,7 +125,7 @@ function buildDisplayData(storedResults, allResults, profile, user) {
   const patient = {
     id: 'self',
     name: user?.fullName || 'You',
-    dob: profile?.dob || '1990-01-01',
+    dob: profile?.dob || null,
     gender: profile?.sex || 'Not specified',
     profile_description: buildProfileDesc(profile),
     initials,

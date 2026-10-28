@@ -1,20 +1,31 @@
 import * as Crypto from 'expo-crypto';
+import { parseISODate } from './dates';
 
-export function getAge(dob) {
-  const d = new Date(dob);
-  const now = new Date('2023-09-25');
-  let age = now.getFullYear() - d.getFullYear();
-  if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) age--;
+/** Local calendar date for YYYY-MM-DD strings, otherwise whatever Date makes of it. */
+function toLocalDate(value) {
+  const d = parseISODate(value) || new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Age in whole years on `today`, or null when the date of birth is missing or invalid. */
+export function getAge(dob, today = new Date()) {
+  const d = dob ? toLocalDate(dob) : null;
+  if (!d) return null;
+  let age = today.getFullYear() - d.getFullYear();
+  if (today.getMonth() < d.getMonth() || (today.getMonth() === d.getMonth() && today.getDate() < d.getDate())) age--;
   return age;
 }
 
 // Dates are shown day first (DD/MM/YYYY); see utils/dates.js.
 export { formatDate } from './dates';
 
-export function daysUntil(dateStr) {
-  const now = new Date('2023-09-25');
-  const target = new Date(dateStr);
-  return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+/** Whole calendar days from `today` to the date (negative when past), or null when invalid. */
+export function daysUntil(dateStr, today = new Date()) {
+  const target = dateStr ? toLocalDate(dateStr) : null;
+  if (!target) return null;
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  return Math.round((end - start) / (1000 * 60 * 60 * 24));
 }
 
 export function getTrendChange(trendValues) {
