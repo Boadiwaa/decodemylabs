@@ -77,8 +77,8 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - MetricDetailScreen.js - Metric deep dive, trend, Gemma explanation (via useMetricExplanation), and TTS
 - TrendsScreen.js - Trend browsing and drill-in
 - DemographicsScreen.js - Demographics onboarding
-- MedicalHistoryScreen.js - Chronic condition onboarding
-- DrugHistoryScreen.js - Medication onboarding
+- MedicalHistoryScreen.js - Chronic conditions, including free-text "other" conditions; onboarding step, and editable later from Settings → My health
+- DrugHistoryScreen.js - Medications; onboarding step, and editable later from Settings → My health
 - PatientDetailScreen.js - Legacy detail screen; registered in navigation but not linked
 
 ### Components

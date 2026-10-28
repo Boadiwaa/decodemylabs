@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { getDrugHistory, getMedicalHistory } from '../services/PatientStorage';
 import { encryptDemo } from '../utils/helpers';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
@@ -36,9 +38,44 @@ const SETTINGS_SECTIONS = [
   },
 ];
 
-export default function SecurityScreen() {
+function savedSummary(items, singular, plural) {
+  if (!items.length) return 'None saved';
+  const names = items.map((i) => i.name).slice(0, 2).join(', ');
+  const more = items.length > 2 ? ` +${items.length - 2} more` : '';
+  return `${items.length} ${items.length === 1 ? singular : plural} · ${names}${more}`;
+}
+
+export default function SecurityScreen({ navigation }) {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
+  const [conditions, setConditions] = useState([]);
+  const [medicines, setMedicines] = useState([]);
+
+  // Reload whenever Settings is shown, so edits made in the health screens appear.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+      getMedicalHistory(user.id).then(setConditions);
+      getDrugHistory(user.id).then(setMedicines);
+    }, [user?.id])
+  );
+
+  const healthItems = [
+    {
+      id: 'conditions',
+      label: 'Health conditions',
+      detail: savedSummary(conditions, 'condition', 'conditions'),
+      icon: 'medkit',
+      route: 'EditMedicalHistory',
+    },
+    {
+      id: 'medicines',
+      label: 'Medicines',
+      detail: savedSummary(medicines, 'medicine', 'medicines'),
+      icon: 'medical',
+      route: 'EditDrugHistory',
+    },
+  ];
   const [toggles, setToggles] = useState(() => {
     const initial = {};
     SETTINGS_SECTIONS.forEach(section =>
@@ -108,6 +145,38 @@ export default function SecurityScreen() {
               Patient
             </Text>
           </View>
+        </Animated.View>
+
+        {/* My health */}
+        <Animated.View entering={FadeInDown.delay(90).springify().damping(18)} style={styles.section}>
+          <Text style={styles.sectionTitle}>My health</Text>
+          <View style={styles.sectionCard}>
+            {healthItems.map((item, ii) => (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.6}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate(item.route);
+                }}
+                style={[styles.settingRow, ii < healthItems.length - 1 && styles.settingRowBorder]}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${item.label.toLowerCase()}. ${item.detail}`}
+              >
+                <View style={[styles.settingIcon, { backgroundColor: Colors.tealLight }]}>
+                  <Ionicons name={item.icon} size={18} color={Colors.tealDark} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingLabel}>{item.label}</Text>
+                  <Text style={styles.settingDetail} numberOfLines={1}>{item.detail}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.sectionHint}>
+            Keeping these up to date helps explain your results in the context of your health.
+          </Text>
         </Animated.View>
 
         {/* Settings sections */}
@@ -255,6 +324,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   settingLabel: { ...Typography.body, color: Colors.navy, flex: 1 },
+  settingDetail: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
+  sectionHint: { ...Typography.caption, color: Colors.textMuted, marginTop: 8, marginLeft: 4 },
 
   aboutCard: {
     alignItems: 'center', marginHorizontal: 16, marginTop: 32,

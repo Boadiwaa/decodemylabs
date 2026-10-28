@@ -16,12 +16,15 @@ import TrendsScreen from '../screens/TrendsScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import SecurityScreen from '../screens/SecurityScreen';
 import LabUploadScreen from '../screens/LabUploadScreen';
+import MedicalHistoryScreen from '../screens/MedicalHistoryScreen';
+import DrugHistoryScreen from '../screens/DrugHistoryScreen';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const TrendsStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
 
 const TAB_ORDER = ['Home', 'Trends', 'Reminders', 'Settings'];
 
@@ -101,10 +104,22 @@ function RemindersWrapper() {
   );
 }
 
-function SettingsWrapper() {
+function SettingsStackNavigator() {
   return (
     <SwipeTabWrapper tabName="Settings">
-      <SecurityScreen />
+      <SettingsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <SettingsStack.Screen name="SettingsMain" component={SecurityScreen} />
+        <SettingsStack.Screen
+          name="EditMedicalHistory"
+          component={MedicalHistoryScreen}
+          initialParams={{ mode: 'edit' }}
+        />
+        <SettingsStack.Screen
+          name="EditDrugHistory"
+          component={DrugHistoryScreen}
+          initialParams={{ mode: 'edit' }}
+        />
+      </SettingsStack.Navigator>
     </SwipeTabWrapper>
   );
 }
@@ -182,7 +197,7 @@ export default function TabNavigator() {
       <Tab.Screen name="Home" component={HomeStackNavigator} />
       <Tab.Screen name="Trends" component={TrendsStackNavigator} />
       <Tab.Screen name="Reminders" component={RemindersWrapper} />
-      <Tab.Screen name="Settings" component={SettingsWrapper} />
+      <Tab.Screen name="Settings" component={SettingsStackNavigator} />
     </Tab.Navigator>
   );
 }

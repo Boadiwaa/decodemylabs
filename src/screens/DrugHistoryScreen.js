@@ -4,9 +4,10 @@
  * Patients can add medications with dosage and duration.
  * Skippable. Data stored strictly on-device via PatientStorage.
  * Last screen in the onboarding flow → marks onboarding complete.
+ * Opened from Settings with { mode: 'edit' } to update the saved list.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -16,7 +17,7 @@ import Animated, { FadeIn, FadeInDown, FadeInRight, FadeOut } from 'react-native
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { saveDrugHistory } from '../services/PatientStorage';
+import { getDrugHistory, saveDrugHistory } from '../services/PatientStorage';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -26,12 +27,25 @@ const COMMON_DRUGS = [
   'Hydrochlorothiazide', 'Ibuprofen', 'Paracetamol', 'Amoxicillin',
 ];
 
-export default function DrugHistoryScreen({ navigation }) {
+export default function DrugHistoryScreen({ navigation, route }) {
   const { user, completeOnboarding } = useAuth();
   const insets = useSafeAreaInsets();
+  const isEditing = route?.params?.mode === 'edit';
 
   // Array of { name, dosage, frequency, years }
   const [medications, setMedications] = useState([]);
+
+  useEffect(() => {
+    if (!isEditing || !user?.id) return;
+    getDrugHistory(user.id).then((saved) => {
+      setMedications(saved.map((m) => ({
+        name: m.name,
+        dosage: m.dosage || '',
+        frequency: m.frequency || '',
+        years: m.years != null && m.years !== '' ? String(m.years) : '',
+      })));
+    });
+  }, [isEditing, user?.id]);
   const [newDrug, setNewDrug] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -66,6 +80,13 @@ export default function DrugHistoryScreen({ navigation }) {
 
   const handleFinish = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    if (isEditing) {
+      // Save even an empty list, so removed medicines are forgotten.
+      await saveDrugHistory(user.id, medications);
+      navigation.goBack();
+      return;
+    }
 
     if (medications.length > 0) {
       await saveDrugHistory(user.id, medications);
@@ -107,16 +128,18 @@ export default function DrugHistoryScreen({ navigation }) {
           </Animated.View>
 
           {/* Progress dots */}
-          <Animated.View entering={FadeIn.delay(50)} style={styles.progressRow}>
-            <View style={[styles.dot, styles.dotDone]} />
-            <View style={[styles.dot, styles.dotDone]} />
-            <View style={[styles.dot, styles.dotActive]} />
-          </Animated.View>
+          {!isEditing && (
+            <Animated.View entering={FadeIn.delay(50)} style={styles.progressRow}>
+              <View style={[styles.dot, styles.dotDone]} />
+              <View style={[styles.dot, styles.dotDone]} />
+              <View style={[styles.dot, styles.dotActive]} />
+            </Animated.View>
+          )}
 
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(100).springify().damping(18)}>
             <Text style={styles.emoji}>💊</Text>
-            <Text style={styles.title}>Taking any medications?</Text>
+            <Text style={styles.title}>{isEditing ? 'Your medicines' : 'Taking any medications?'}</Text>
             <Text style={styles.subtitle}>
               List any medicines you take regularly — prescriptions, supplements,
               over-the-counter stuff. This helps us flag potential interactions and
@@ -267,25 +290,29 @@ export default function DrugHistoryScreen({ navigation }) {
                 onPress={handleFinish}
                 activeOpacity={0.85}
                 style={styles.continueBtn}
-                accessibilityLabel="Finish setup"
+                accessibilityLabel={isEditing ? 'Save medicines' : 'Finish setup'}
               >
                 <Text style={styles.continueBtnText}>
-                  {medications.length > 0 ? "All set — let's go! 🎉" : "No medications — let's go!"}
+                  {isEditing
+                    ? 'Save changes'
+                    : medications.length > 0 ? "All set — let's go! 🎉" : "No medications — let's go!"}
                 </Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
+                <Ionicons name={isEditing ? 'checkmark' : 'arrow-forward'} size={18} color="#fff" />
               </TouchableOpacity>
             </Animated.View>
 
-            <Animated.View entering={FadeIn.delay(500)}>
-              <TouchableOpacity
-                onPress={handleSkip}
-                activeOpacity={0.7}
-                style={styles.skipBtn}
-                accessibilityLabel="Skip drug history"
-              >
-                <Text style={styles.skipText}>Skip for now</Text>
-              </TouchableOpacity>
-            </Animated.View>
+            {!isEditing && (
+              <Animated.View entering={FadeIn.delay(500)}>
+                <TouchableOpacity
+                  onPress={handleSkip}
+                  activeOpacity={0.7}
+                  style={styles.skipBtn}
+                  accessibilityLabel="Skip drug history"
+                >
+                  <Text style={styles.skipText}>Skip for now</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
           </View>
 
           {/* Privacy */}

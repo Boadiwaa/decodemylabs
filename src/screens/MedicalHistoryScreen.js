@@ -1,12 +1,13 @@
 /**
  * MedicalHistoryScreen — warm collection of chronic conditions.
  *
- * Patients select from common conditions, enter duration in years.
- * Skippable — but a gentle nudge explains why it matters.
- * Data stored strictly on-device via PatientStorage.
+ * Patients select from common conditions or add their own, and enter
+ * duration in years. Skippable during onboarding — but a gentle nudge
+ * explains why it matters. Opened from Settings with { mode: 'edit' } to
+ * update the saved list. Data stored strictly on-device via PatientStorage.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -16,7 +17,7 @@ import Animated, { FadeIn, FadeInDown, FadeInRight } from 'react-native-reanimat
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { saveMedicalHistory } from '../services/PatientStorage';
+import { getMedicalHistory, saveMedicalHistory } from '../services/PatientStorage';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -39,12 +40,47 @@ const CONDITIONS = [
   { id: 'high_cholesterol', name: 'High Cholesterol', icon: 'analytics' },
 ];
 
-export default function MedicalHistoryScreen({ navigation }) {
+function customConditionId(name) {
+  return `custom_${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+}
+
+export default function MedicalHistoryScreen({ navigation, route }) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const isEditing = route?.params?.mode === 'edit';
 
   // { conditionId: { selected: bool, years: string } }
   const [selections, setSelections] = useState({});
+  // Conditions the patient typed in: [{ id, name }]
+  const [customConditions, setCustomConditions] = useState([]);
+  const [otherName, setOtherName] = useState('');
+
+  useEffect(() => {
+    if (!isEditing || !user?.id) return;
+    getMedicalHistory(user.id).then((saved) => {
+      const nextSelections = {};
+      const nextCustom = [];
+      saved.forEach((c) => {
+        nextSelections[c.id] = { selected: true, years: c.years ? String(c.years) : '' };
+        if (!CONDITIONS.find((known) => known.id === c.id)) nextCustom.push({ id: c.id, name: c.name });
+      });
+      setSelections(nextSelections);
+      setCustomConditions(nextCustom);
+    });
+  }, [isEditing, user?.id]);
+
+  const addOtherCondition = () => {
+    const name = otherName.trim();
+    if (!name) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const known = CONDITIONS.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    const id = known ? known.id : customConditionId(name);
+    if (!known && !customConditions.find((c) => c.id === id)) {
+      setCustomConditions((prev) => [...prev, { id, name }]);
+    }
+    setSelections((prev) => (prev[id] ? prev : { ...prev, [id]: { selected: true, years: '' } }));
+    setOtherName('');
+  };
 
   const toggleCondition = (id) => {
     Haptics.selectionAsync();
@@ -71,7 +107,7 @@ export default function MedicalHistoryScreen({ navigation }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const conditions = Object.entries(selections).map(([id, data]) => {
-      const cond = CONDITIONS.find((c) => c.id === id);
+      const cond = CONDITIONS.find((c) => c.id === id) || customConditions.find((c) => c.id === id);
       return {
         id,
         name: cond?.name || id,
@@ -80,7 +116,12 @@ export default function MedicalHistoryScreen({ navigation }) {
     });
 
     await saveMedicalHistory(user.id, conditions);
-    navigation.navigate('DrugHistory');
+    if (isEditing) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      navigation.goBack();
+    } else {
+      navigation.navigate('DrugHistory');
+    }
   };
 
   const handleSkip = () => {
@@ -115,25 +156,30 @@ export default function MedicalHistoryScreen({ navigation }) {
           </Animated.View>
 
           {/* Progress dots */}
-          <Animated.View entering={FadeIn.delay(50)} style={styles.progressRow}>
-            <View style={[styles.dot, styles.dotDone]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={styles.dot} />
-          </Animated.View>
+          {!isEditing && (
+            <Animated.View entering={FadeIn.delay(50)} style={styles.progressRow}>
+              <View style={[styles.dot, styles.dotDone]} />
+              <View style={[styles.dot, styles.dotActive]} />
+              <View style={styles.dot} />
+            </Animated.View>
+          )}
 
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(100).springify().damping(18)}>
             <Text style={styles.emoji}>🩺</Text>
-            <Text style={styles.title}>Any health conditions we should know about?</Text>
+            <Text style={styles.title}>
+              {isEditing ? 'Your health conditions' : 'Any health conditions we should know about?'}
+            </Text>
             <Text style={styles.subtitle}>
-              If you've been living with any of these, let us know — and for how long.
-              This helps the app give you much more personalized explanations of your lab results.
+              {isEditing
+                ? 'Keep this up to date — tick anything new, untick anything that no longer applies, and add conditions that aren\'t listed.'
+                : 'If you\'ve been living with any of these, let us know — and for how long. This helps the app give you much more personalized explanations of your lab results.'}
             </Text>
           </Animated.View>
 
           {/* Conditions grid */}
           <View style={styles.conditionsGrid}>
-            {CONDITIONS.map((cond, i) => {
+            {[...CONDITIONS, ...customConditions.map((c) => ({ ...c, icon: 'add-circle' }))].map((cond, i) => {
               const isSelected = !!selections[cond.id]?.selected;
               return (
                 <Animated.View
@@ -186,6 +232,34 @@ export default function MedicalHistoryScreen({ navigation }) {
             })}
           </View>
 
+          {/* Other condition */}
+          <Animated.View entering={FadeInDown.delay(550).springify()} style={styles.otherCard}>
+            <Text style={styles.otherLabel}>Something else?</Text>
+            <View style={styles.otherRow}>
+              <TextInput
+                style={styles.otherInput}
+                placeholder="e.g. Gout, Hepatitis B…"
+                placeholderTextColor={Colors.textMuted}
+                value={otherName}
+                onChangeText={setOtherName}
+                onSubmitEditing={addOtherCondition}
+                returnKeyType="done"
+                maxLength={60}
+                accessibilityLabel="Other condition name"
+              />
+              <TouchableOpacity
+                onPress={addOtherCondition}
+                activeOpacity={0.8}
+                style={[styles.otherAddBtn, !otherName.trim() && { opacity: 0.5 }]}
+                disabled={!otherName.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Add other condition"
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+
           {/* Continue / Skip */}
           <View style={styles.actions}>
             <Animated.View entering={FadeInDown.delay(600).springify()}>
@@ -193,27 +267,31 @@ export default function MedicalHistoryScreen({ navigation }) {
                 onPress={handleContinue}
                 activeOpacity={0.85}
                 style={styles.continueBtn}
-                accessibilityLabel="Continue to drug history"
+                accessibilityLabel={isEditing ? 'Save health conditions' : 'Continue to drug history'}
               >
                 <Text style={styles.continueBtnText}>
-                  {selectedCount > 0
-                    ? `Continue with ${selectedCount} condition${selectedCount > 1 ? 's' : ''}`
-                    : 'Continue — none of these'}
+                  {isEditing
+                    ? 'Save changes'
+                    : selectedCount > 0
+                      ? `Continue with ${selectedCount} condition${selectedCount > 1 ? 's' : ''}`
+                      : 'Continue — none of these'}
                 </Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
+                <Ionicons name={isEditing ? 'checkmark' : 'arrow-forward'} size={18} color="#fff" />
               </TouchableOpacity>
             </Animated.View>
 
-            <Animated.View entering={FadeIn.delay(700)}>
-              <TouchableOpacity
-                onPress={handleSkip}
-                activeOpacity={0.7}
-                style={styles.skipBtn}
-                accessibilityLabel="Skip medical history"
-              >
-                <Text style={styles.skipText}>Skip for now</Text>
-              </TouchableOpacity>
-            </Animated.View>
+            {!isEditing && (
+              <Animated.View entering={FadeIn.delay(700)}>
+                <TouchableOpacity
+                  onPress={handleSkip}
+                  activeOpacity={0.7}
+                  style={styles.skipBtn}
+                  accessibilityLabel="Skip medical history"
+                >
+                  <Text style={styles.skipText}>Skip for now</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
           </View>
 
           {/* Why this matters */}
@@ -302,6 +380,22 @@ const styles = StyleSheet.create({
   },
   durationUnit: {
     ...Typography.bodySmall, color: Colors.textMuted,
+  },
+
+  otherCard: {
+    backgroundColor: Colors.white, borderRadius: 16,
+    borderWidth: 1, borderColor: Colors.border, padding: 14, marginBottom: 24,
+  },
+  otherLabel: { ...Typography.body, fontWeight: '600', color: Colors.textPrimary, marginBottom: 10 },
+  otherRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  otherInput: {
+    flex: 1, height: 44, borderRadius: 12, paddingHorizontal: 12,
+    backgroundColor: Colors.bgPrimary, borderWidth: 1, borderColor: Colors.border,
+    ...Typography.body, color: Colors.navy,
+  },
+  otherAddBtn: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: Colors.indigo, alignItems: 'center', justifyContent: 'center',
   },
 
   actions: { marginBottom: 20 },
