@@ -333,6 +333,25 @@ const UNIT_CONVERSIONS = {
   HbA1c: { 'mmol/mol': { toBase: (v) => v * 0.09148 + 2.152, fromBase: (v) => (v - 2.152) / 0.09148 } },
 };
 
+// -- Range text --
+
+/**
+ * Patient-facing text for a normal range: "<200 mg/dL", "90 or higher
+ * mL/min/1.73m2" (open-ended ranges such as eGFR) or "70-100 mg/dL".
+ */
+export function formatNormalRange(normal, unit) {
+  const suffix = unit ? ` ${unit}` : '';
+  if (normal.max === Infinity) return `${normal.min} or higher${suffix}`;
+  if (normal.min === 0) return `<${normal.max}${suffix}`;
+  return `${normal.min}-${normal.max}${suffix}`;
+}
+
+/** Repair range text saved before formatNormalRange existed ("90-Infinity ..."). */
+export function tidyRangeText(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/^\s*([\d.]+)\s*-\s*Infinity\b/, '$1 or higher');
+}
+
 /** Lower-case, ASCII-only form of a unit so spelling variants compare equal. */
 export function normalizeUnit(unit) {
   const u = String(unit || '')

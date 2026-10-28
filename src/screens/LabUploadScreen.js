@@ -35,7 +35,7 @@ import {
 import {
   parseLabReportFromImage, parseLabReportWithModel, recognizeTextFromImage,
 } from '../services/LabReportParser';
-import { classifySeverity, REFERENCE_RANGES } from '../domain/reference_ranges';
+import { classifySeverity, formatNormalRange, REFERENCE_RANGES } from '../domain/reference_ranges';
 import { sortByLabGroup } from '../domain/lab_groups';
 import { formatDate, parseISODate, toISODate } from '../utils/dates';
 import Colors from '../constants/colors';
@@ -297,7 +297,7 @@ export default function LabUploadScreen({ navigation }) {
     const numericValue = parseFloat(manualValue);
     const ref = REFERENCE_RANGES[manualTest];
     const unit = manualUnit || ref?.unit || '';
-    const range = manualRange || (ref ? `${ref.normal.min}-${ref.normal.max} ${ref.unit}` : '');
+    const range = manualRange || (ref ? formatNormalRange(ref.normal, ref.unit) : '');
 
     const result = {
       id: `manual_${Date.now()}`,
@@ -351,11 +351,7 @@ export default function LabUploadScreen({ navigation }) {
     const ref = REFERENCE_RANGES[testName];
     if (ref) {
       setManualUnit(ref.unit);
-      if (ref.normal.min === 0) {
-        setManualRange(`<${ref.normal.max} ${ref.unit}`);
-      } else {
-        setManualRange(`${ref.normal.min}-${ref.normal.max} ${ref.unit}`);
-      }
+      setManualRange(formatNormalRange(ref.normal, ref.unit));
     }
   };
 

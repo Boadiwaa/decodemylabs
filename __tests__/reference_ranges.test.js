@@ -1,4 +1,4 @@
-import { classifySeverity, deviationFromNormal } from '../src/domain/reference_ranges';
+import { classifySeverity, deviationFromNormal, formatNormalRange, tidyRangeText, REFERENCE_RANGES } from '../src/domain/reference_ranges';
 
 describe('classifySeverity', () => {
   it('classifies cholesterol in mg/dL at threshold boundaries', () => {
@@ -84,5 +84,19 @@ describe('classifySeverity with converted units', () => {
     expect(classifySeverity('Hemoglobin', 135, 'g/L')).toBe('safe');
     expect(classifySeverity('Hemoglobin', 65, 'g/L')).toBe('danger');
     expect(classifySeverity('HbA1c', 53, 'mmol/mol')).toBe('danger');
+  });
+});
+
+describe('range text', () => {
+  it('formats open-ended, upper-only and two-sided ranges', () => {
+    expect(formatNormalRange(REFERENCE_RANGES.eGFR.normal, 'mL/min/1.73m2')).toBe('90 or higher mL/min/1.73m2');
+    expect(formatNormalRange({ min: 0, max: 200 }, 'mg/dL')).toBe('<200 mg/dL');
+    expect(formatNormalRange({ min: 70, max: 100 }, 'mg/dL')).toBe('70-100 mg/dL');
+  });
+
+  it('repairs range text saved with Infinity', () => {
+    expect(tidyRangeText('90-Infinity mL/min/1.73m2')).toBe('90 or higher mL/min/1.73m2');
+    expect(tidyRangeText('<200 mg/dL')).toBe('<200 mg/dL');
+    expect(tidyRangeText(undefined)).toBeUndefined();
   });
 });

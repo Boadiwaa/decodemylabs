@@ -17,7 +17,7 @@ import {
   getProfile,
   buildTrendFromResults,
 } from '../services/PatientStorage';
-import { classifySeverity } from '../domain/reference_ranges';
+import { classifySeverity, tidyRangeText } from '../domain/reference_ranges';
 import Colors from '../constants/colors';
 
 function parseNumericValue(resultValue) {
@@ -68,7 +68,7 @@ function buildDisplayData(storedResults, allResults, profile, user) {
       result_value: result.result_value,
       numeric_value: numericValue,
       unit: result.unit || '',
-      normal_range: result.normal_range,
+      normal_range: tidyRangeText(result.normal_range),
       date: result.date,
       severity,
       source_report_id: result.source_report_id || null,

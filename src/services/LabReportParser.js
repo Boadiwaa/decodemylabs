@@ -10,7 +10,7 @@
 
 import llamaService from './LlamaService';
 import { recognizeText } from '../../modules/expo-ocr/src/index';
-import { REFERENCE_RANGES, classifySeverity, normalizeUnit } from '../domain/reference_ranges';
+import { REFERENCE_RANGES, classifySeverity, formatNormalRange, normalizeUnit } from '../domain/reference_ranges';
 import { toISODate, parseDateFromText } from '../utils/dates';
 import {
   EXTRACTION_PROMPT,
@@ -512,15 +512,11 @@ function getDefaultRange(testName, unit) {
     if (unit && ref.altUnits) {
       const normUnit = unit.trim().toLowerCase();
       for (const [altKey, altThresh] of Object.entries(ref.altUnits)) {
-        if (altKey.toLowerCase() === normUnit) {
-          if (altThresh.normal.min === 0) return `<${altThresh.normal.max} ${altKey}`;
-          return `${altThresh.normal.min}-${altThresh.normal.max} ${altKey}`;
-        }
+        if (altKey.toLowerCase() === normUnit) return formatNormalRange(altThresh.normal, altKey);
       }
     }
     // Fall back to primary unit
-    if (ref.normal.min === 0) return `<${ref.normal.max} ${ref.unit}`;
-    return `${ref.normal.min}-${ref.normal.max} ${ref.unit}`;
+    return formatNormalRange(ref.normal, ref.unit);
   }
   const tp = TEST_PATTERNS.find((p) => p.name === testName);
   return tp?.range || 'See reference';
