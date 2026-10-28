@@ -52,3 +52,37 @@ describe('deviationFromNormal', () => {
     expect(deviationFromNormal('Potassium', 3.15, 'mmol/L')).toBe('10.0');
   });
 });
+
+describe('convertUnit', () => {
+  const { convertUnit, normalizeUnit } = require('../src/domain/reference_ranges');
+
+  it('treats spelling variants as the same unit', () => {
+    expect(normalizeUnit('µmol/L')).toBe(normalizeUnit('umol/l'));
+    expect(normalizeUnit('x10^9/L')).toBe(normalizeUnit('×10³/µL'));
+    expect(convertUnit('WBC', 6.2, '10^9/L', '×10³/µL')).toBe(6.2);
+  });
+
+  it('converts between mg/dL and mmol/L in both directions', () => {
+    expect(convertUnit('Glucose', 5.5, 'mmol/L', 'mg/dL')).toBeCloseTo(99.1, 1);
+    expect(convertUnit('Glucose', 99, 'mg/dL', 'mmol/L')).toBeCloseTo(5.5, 1);
+    expect(convertUnit('Creatinine', 88.42, 'µmol/L', 'mg/dL')).toBeCloseTo(1, 3);
+  });
+
+  it('converts HbA1c between mmol/mol and %', () => {
+    expect(convertUnit('HbA1c', 48, 'mmol/mol', '%')).toBeCloseTo(6.5, 1);
+    expect(convertUnit('HbA1c', 6.5, '%', 'mmol/mol')).toBeCloseTo(48, 0);
+  });
+
+  it('returns null when the conversion is unknown', () => {
+    expect(convertUnit('Glucose', 5, 'g/L', 'mg/dL')).toBeNull();
+    expect(convertUnit('Unknown Test', 5, 'mg/dL', 'mmol/L')).toBeNull();
+  });
+});
+
+describe('classifySeverity with converted units', () => {
+  it('converts units without their own thresholds to the base unit', () => {
+    expect(classifySeverity('Hemoglobin', 135, 'g/L')).toBe('safe');
+    expect(classifySeverity('Hemoglobin', 65, 'g/L')).toBe('danger');
+    expect(classifySeverity('HbA1c', 53, 'mmol/mol')).toBe('danger');
+  });
+});

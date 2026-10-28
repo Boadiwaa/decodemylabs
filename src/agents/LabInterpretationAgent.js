@@ -85,7 +85,7 @@ function buildUserPrompt({ patient, lab, trend, mode, patientContext, outputInst
   const personalization = buildPersonalizationInsights({ lab, patientContext });
 
   const trendData = trend
-    ? trend.values.map(v => `  ${v.date}: ${v.value} ${trend.unit}`).join('\n')
+    ? trend.values.map(v => `  ${v.fullDate || v.date}: ${v.value} ${trend.unit}`).join('\n')
     : '  No trend data available';
 
   const modeInstructions = PATIENT_INSTRUCTIONS;

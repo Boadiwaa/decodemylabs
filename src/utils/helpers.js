@@ -8,9 +8,8 @@ export function getAge(dob) {
   return age;
 }
 
-export function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+// Dates are shown day first (DD/MM/YYYY); see utils/dates.js.
+export { formatDate } from './dates';
 
 export function daysUntil(dateStr) {
   const now = new Date('2023-09-25');

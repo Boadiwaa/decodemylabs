@@ -272,6 +272,16 @@ export default function TrendsScreen({ navigation }) {
                 }]}>{changePercent > 0 ? '+' : ''}{changePercent}%</Text>
               </View>
             </View>
+            {trend?.convertedCount > 0 && (
+              <Text style={styles.chartNote}>
+                Some earlier results were converted to {trend.unit} so they can be compared.
+              </Text>
+            )}
+            {trend?.skippedCount > 0 && (
+              <Text style={styles.chartNote}>
+                {trend.skippedCount} earlier result{trend.skippedCount !== 1 ? 's' : ''} used a unit we can't convert, so {trend.skippedCount !== 1 ? "they aren't" : "it isn't"} shown.
+              </Text>
+            )}
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.chartCard}>
@@ -431,6 +441,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: Colors.borderLight,
   },
   chartStat: { flex: 1, alignItems: 'center' },
+  chartNote: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', marginTop: 10 },
   chartStatLabel: { ...Typography.labelSmall, color: Colors.textMuted },
   chartStatValue: { fontFamily: Typography.serif, fontSize: 16, fontWeight: '700', color: Colors.navy, marginTop: 4 },
   chartStatDivider: { width: 1, backgroundColor: Colors.borderLight },

@@ -110,12 +110,22 @@ export default function TrendChart({ trend, severity }) {
               {selectedPoint.value} {trend.unit}
             </Text>
             <Text style={styles.tooltipDate}>
-              {labels[selectedPoint.index]} 2023
+              {trend.values[selectedPoint.index]?.fullDate || labels[selectedPoint.index]}
             </Text>
           </Animated.View>
         )}
       </View>
 
+      {trend.convertedCount > 0 && (
+        <Text style={styles.hint}>
+          Some earlier results were converted to {trend.unit} so they can be compared.
+        </Text>
+      )}
+      {trend.skippedCount > 0 && (
+        <Text style={styles.hint}>
+          {trend.skippedCount} earlier result{trend.skippedCount !== 1 ? 's' : ''} used a unit we can't convert, so {trend.skippedCount !== 1 ? "they aren't" : "it isn't"} shown.
+        </Text>
+      )}
       <Text style={styles.hint}>Tap data points for details</Text>
     </Animated.View>
   );

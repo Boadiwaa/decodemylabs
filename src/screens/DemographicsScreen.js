@@ -230,7 +230,7 @@ export default function DemographicsScreen({ navigation }) {
               </View>
               {dob && (
                 <Text style={styles.dobPreview}>
-                  {MONTHS[dob.getMonth()]} {dob.getDate()}, {dob.getFullYear()}
+                  {dob.getDate()} {MONTHS[dob.getMonth()]} {dob.getFullYear()}
                 </Text>
               )}
               {dobError ? <Text style={styles.dobErrorText}>{dobError}</Text> : null}

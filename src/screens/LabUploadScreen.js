@@ -30,12 +30,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import {
   saveLabReport, getLabReports, deleteLabReport,
-  appendLabResults, deleteLabResultsByReport, deleteLabResultById,
+  appendLabResults, deleteLabResultsByReport, deleteLabResultById, updateReportResultsDate,
 } from '../services/PatientStorage';
 import {
   parseLabReportFromImage, parseLabReportWithModel, recognizeTextFromImage,
 } from '../services/LabReportParser';
 import { classifySeverity, REFERENCE_RANGES } from '../domain/reference_ranges';
+import { formatDate, parseISODate, toISODate } from '../utils/dates';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -64,6 +65,11 @@ export default function LabUploadScreen({ navigation }) {
   const [parsedResults, setParsedResults] = useState(null);
   const [currentReportId, setCurrentReportId] = useState(null);
 
+  // Test date for the current report: read from the report, or today until the patient sets it
+  const [reportDate, setReportDate] = useState(null);
+  const [reportDateStatus, setReportDateStatus] = useState('found'); // 'found' | 'missing' | 'confirmed'
+  const [showReportDatePicker, setShowReportDatePicker] = useState(false);
+
   // Report viewer state
   const [viewerReport, setViewerReport] = useState(null);
 
@@ -73,7 +79,7 @@ export default function LabUploadScreen({ navigation }) {
   const [manualValue, setManualValue] = useState('');
   const [manualUnit, setManualUnit] = useState('');
   const [manualRange, setManualRange] = useState('');
-  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualDate, setManualDate] = useState(toISODate());
   const [showTestPicker, setShowTestPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -148,6 +154,7 @@ export default function LabUploadScreen({ navigation }) {
     setProcessingMessage('Saving your report...');
     progressAnim.value = withTiming(0.1, { duration: 300 });
     setParsedResults(null);
+    setReportDate(null);
 
     try {
       // Step 1: Save file
@@ -181,6 +188,7 @@ export default function LabUploadScreen({ navigation }) {
         setProcessingMessage(`Found ${visionResults.length} lab result${visionResults.length !== 1 ? 's' : ''}!`);
         progressAnim.value = withTiming(1, { duration: 300 });
         setParsedResults(visionResults);
+        showReportDate(visionResults);
         await appendLabResults(user.id, visionResults);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowManualEntry(true);
@@ -229,6 +237,7 @@ export default function LabUploadScreen({ navigation }) {
         setProcessingMessage(`Found ${results.length} lab result${results.length !== 1 ? 's' : ''}!`);
         progressAnim.value = withTiming(1, { duration: 300 });
         setParsedResults(results);
+        showReportDate(results);
         await appendLabResults(user.id, results);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowManualEntry(true);
@@ -246,6 +255,31 @@ export default function LabUploadScreen({ navigation }) {
       progressAnim.value = withTiming(1, { duration: 400 });
       setShowManualEntry(true);
     }
+  };
+
+  /** Show the test date the parser settled on (every result from one report shares it). */
+  const showReportDate = (results) => {
+    const first = results[0];
+    if (!first) return;
+    setReportDate(first.date);
+    setReportDateStatus(first.date_found ? 'found' : 'missing');
+    setManualDate(first.date);
+  };
+
+  /** Patient picked the test date: apply it to every result from this report. */
+  const onReportDateChange = async (event, selectedDate) => {
+    if (Platform.OS === 'android') setShowReportDatePicker(false);
+    if (event?.type === 'dismissed' || !selectedDate || !currentReportId) return;
+
+    const iso = toISODate(selectedDate);
+    setReportDate(iso);
+    setReportDateStatus('confirmed');
+    setManualDate(iso);
+    await updateReportResultsDate(user.id, currentReportId, iso);
+    setParsedResults((prev) => (prev || []).map((r) => (
+      r.source_report_id === currentReportId ? { ...r, date: iso, date_confirmed: true } : r
+    )));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   /**
@@ -305,7 +339,7 @@ export default function LabUploadScreen({ navigation }) {
   const onDatePickerChange = (event, selectedDate) => {
     if (Platform.OS === 'android') setShowDatePicker(false);
     if (selectedDate) {
-      setManualDate(selectedDate.toISOString().split('T')[0]);
+      setManualDate(toISODate(selectedDate));
     }
   };
 
@@ -379,6 +413,8 @@ export default function LabUploadScreen({ navigation }) {
     // Reset session state so the screen is fresh on back-navigation
     setParsedResults(null);
     setCurrentReportId(null);
+    setReportDate(null);
+    setShowReportDatePicker(false);
     setProcessing(false);
     setShowManualEntry(false);
     setShowDatePicker(false);
@@ -445,6 +481,64 @@ export default function LabUploadScreen({ navigation }) {
             {/* Extracted results */}
             {parsedResults && parsedResults.length > 0 && (
               <View style={{ marginTop: processing ? 16 : 0 }}>
+                {reportDate && (
+                  <Animated.View
+                    entering={FadeInDown.springify()}
+                    style={[styles.dateCard, reportDateStatus === 'missing' && styles.dateCardMissing]}
+                  >
+                    <View style={styles.dateRow}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={18}
+                        color={reportDateStatus === 'missing' ? Colors.warn : Colors.tealDark}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.dateLabel}>Test date</Text>
+                        <Text style={styles.dateValue}>{formatDate(reportDate)}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.dateChangeBtn}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setShowReportDatePicker(true);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Change test date, currently ${formatDate(reportDate)}`}
+                      >
+                        <Text style={styles.dateChangeText}>Change</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.dateHint}>
+                      {reportDateStatus === 'missing'
+                        ? "We couldn't find a date on your report, so we used today. Please set the day your test was done so your trends line up."
+                        : reportDateStatus === 'confirmed'
+                          ? 'Thanks! Your results will be charted on this date.'
+                          : 'We read this from your report. Please check it matches.'}
+                    </Text>
+                    {showReportDatePicker && (
+                      <>
+                        <DateTimePicker
+                          value={parseISODate(reportDate) || new Date()}
+                          mode="date"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={onReportDateChange}
+                          maximumDate={new Date()}
+                        />
+                        {Platform.OS === 'ios' && (
+                          <TouchableOpacity
+                            onPress={() => setShowReportDatePicker(false)}
+                            style={{ alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 12 }}
+                            accessibilityLabel="Done choosing test date"
+                          >
+                            <Text style={{ color: Colors.teal, fontWeight: '600', fontSize: 14 }}>Done</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
+                  </Animated.View>
+                )}
+
                 <Text style={styles.extractedTitle}>
                   ✅ Extracted Lab Values ({parsedResults.length})
                 </Text>
@@ -558,14 +652,14 @@ export default function LabUploadScreen({ navigation }) {
               accessibilityLabel="Select date"
             >
               <Text style={manualDate ? { color: Colors.navy } : { color: Colors.textMuted }}>
-                {manualDate || 'Date (YYYY-MM-DD)'}
+                {manualDate ? formatDate(manualDate) : 'Date (DD/MM/YYYY)'}
               </Text>
               <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
             </TouchableOpacity>
             {showDatePicker && (
               <>
                 <DateTimePicker
-                  value={manualDate ? new Date(manualDate) : new Date()}
+                  value={parseISODate(manualDate) || new Date()}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onDatePickerChange}
@@ -673,7 +767,7 @@ export default function LabUploadScreen({ navigation }) {
                     <Text style={styles.reportName} numberOfLines={1}>{report.fileName}</Text>
                     <Text style={styles.reportDate}>
                       {report.uploadedAt
-                        ? new Date(report.uploadedAt).toLocaleDateString()
+                        ? `Uploaded ${formatDate(report.uploadedAt)}`
                         : 'Recently uploaded'}
                     </Text>
                     <Text style={styles.reportTapHint}>
@@ -772,6 +866,18 @@ const styles = StyleSheet.create({
   processingText: {
     ...Typography.bodySmall, color: Colors.textSecondary, flex: 1,
   },
+  dateCard: {
+    backgroundColor: Colors.tealLight, borderRadius: 14, padding: 12, marginBottom: 14,
+  },
+  dateCardMissing: { backgroundColor: Colors.warnBg, borderWidth: 1, borderColor: Colors.warnBorder },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dateLabel: { ...Typography.caption, color: Colors.textSecondary },
+  dateValue: { ...Typography.body, fontWeight: '700', color: Colors.navy },
+  dateChangeBtn: {
+    paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: Colors.white,
+  },
+  dateChangeText: { ...Typography.bodySmall, fontWeight: '600', color: Colors.tealDark },
+  dateHint: { ...Typography.caption, color: Colors.textSecondary, marginTop: 8 },
   extractedTitle: {
     ...Typography.body, fontWeight: '700', color: Colors.navy, marginBottom: 12,
   },

@@ -31,7 +31,7 @@ Rules:
 - result_value: ONLY the numeric value as a string (e.g. "42.5"). NO units here.
 - unit: The unit EXACTLY as shown on the report (e.g. "umol/L", "mmol/L", "U/L", "g/L", "mg/dL"). Do NOT convert units.
 - normal_range: The reference range EXACTLY as shown on the report (e.g. "0-35 U/L", "45-84 umol/L"). Include the unit.
-- date: Report date as YYYY-MM-DD, or "unknown"
+- date: Report date as YYYY-MM-DD, or "unknown". Dates on these reports are written day first (DD/MM/YYYY, as in Ghana): "03/04/2026" is 3 April 2026, so output "2026-04-03".
 
 CRITICAL ALIASES:
 - "SGPT" or "Alanine Aminotransferase" = "ALT"
@@ -72,7 +72,7 @@ Rules:
 - result_value: ONLY the numeric value as a string (e.g. "42.5"). NO units here.
 - unit: The unit EXACTLY as shown on the report. Do NOT convert units.
 - normal_range: The reference range EXACTLY as shown on the report, including unit
-- date: Report date as YYYY-MM-DD, or "unknown"
+- date: Report date as YYYY-MM-DD, or "unknown". Dates on these reports are written day first (DD/MM/YYYY, as in Ghana): "03/04/2026" is 3 April 2026, so output "2026-04-03".
 
 CRITICAL ALIASES:
 - SGPT = ALT, SGOT = AST, Alkaline Phosphatase = ALP, Gamma GT = GGT

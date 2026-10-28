@@ -2,10 +2,10 @@
  * Clinical reference ranges — single source of truth.
  * All severity checks reference this file.
  *
- * Each range supports multiple units. The `units` map contains
- * conversion-specific normal/elevated/critical thresholds so the
- * same test can be classified regardless of whether the lab
- * reports in mg/dL, mmol/L, umol/L, g/L, etc.
+ * Each range supports multiple units. The `altUnits` map holds thresholds
+ * for common alternative units; other known units are converted to the
+ * base unit (see convertUnit), so the same test can be classified and
+ * trended whether the lab reports in mg/dL, mmol/L, umol/L, g/L, etc.
  */
 
 export const REFERENCE_RANGES = {
@@ -290,19 +290,110 @@ export const REFERENCE_RANGES = {
   },
 };
 
-function resolveThresholdsForUnit(range, unit) {
-  if (!range) return null;
+// -- Units --
 
-  if (unit && range.altUnits) {
-    const normalizedUnit = unit.trim().toLowerCase();
+// Spellings that mean the same unit (after normalizeUnit).
+const EQUIVALENT_UNITS = {
+  'iu/l': 'u/l',
+  '109/l': '103/ul',
+  'k/ul': '103/ul',
+  '1012/l': '106/ul',
+  'm/ul': '106/ul',
+  'uiu/ml': 'miu/l',
+  'mu/l': 'miu/l',
+  'ml/min': 'ml/min/1.73m2',
+};
+
+const MMOL_CHOLESTEROL_TO_MG = 38.67;
+const MG_BILIRUBIN_TO_UMOL = 17.1;
+const G_DL_TO_G_L = 10;
+
+/**
+ * Conversions into each test's base unit (REFERENCE_RANGES[test].unit),
+ * keyed by normalized source unit. A number is a multiplier.
+ */
+const UNIT_CONVERSIONS = {
+  Cholesterol: { 'mmol/l': MMOL_CHOLESTEROL_TO_MG },
+  LDL: { 'mmol/l': MMOL_CHOLESTEROL_TO_MG },
+  HDL: { 'mmol/l': MMOL_CHOLESTEROL_TO_MG },
+  Triglycerides: { 'mmol/l': 88.57 },
+  Glucose: { 'mmol/l': 18.016 },
+  Creatinine: { 'umol/l': 1 / 88.42 },
+  BUN: { 'mg/dl': 0.357 },
+  Calcium: { 'mmol/l': 4.008 },
+  Magnesium: { 'mmol/l': 2.431 },
+  'Total Protein': { 'g/dl': G_DL_TO_G_L },
+  Albumin: { 'g/dl': G_DL_TO_G_L },
+  Globulin: { 'g/dl': G_DL_TO_G_L },
+  Bilirubin: { 'mg/dl': MG_BILIRUBIN_TO_UMOL },
+  'Direct Bilirubin': { 'mg/dl': MG_BILIRUBIN_TO_UMOL },
+  'Indirect Bilirubin': { 'mg/dl': MG_BILIRUBIN_TO_UMOL },
+  Hemoglobin: { 'g/l': 1 / G_DL_TO_G_L },
+  // IFCC mmol/mol to NGSP % (linear, not a plain multiplier).
+  HbA1c: { 'mmol/mol': { toBase: (v) => v * 0.09148 + 2.152, fromBase: (v) => (v - 2.152) / 0.09148 } },
+};
+
+/** Lower-case, ASCII-only form of a unit so spelling variants compare equal. */
+export function normalizeUnit(unit) {
+  const u = String(unit || '')
+    .toLowerCase()
+    .replace(/[µμ]/g, 'u')
+    .replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁶/g, '6').replace(/⁹/g, '9')
+    .replace(/[×x*](?=\s*10)/g, '')
+    .replace(/[\s^*]/g, '');
+  return EQUIVALENT_UNITS[u] || u;
+}
+
+function baseUnitOf(testName) {
+  return normalizeUnit(REFERENCE_RANGES[testName]?.unit);
+}
+
+/**
+ * Convert a value between units for a test. An empty unit is taken as the
+ * test's base unit. Returns null when the conversion is not known.
+ * @returns {number|null}
+ */
+export function convertUnit(testName, value, fromUnit, toUnit) {
+  if (!Number.isFinite(value)) return null;
+  const base = baseUnitOf(testName);
+  const from = normalizeUnit(fromUnit) || base;
+  const to = normalizeUnit(toUnit) || base;
+  if (from === to) return value;
+  if (!base) return null;
+
+  const conversions = UNIT_CONVERSIONS[testName] || {};
+  let baseValue = value;
+  if (from !== base) {
+    const c = conversions[from];
+    if (c == null) return null;
+    baseValue = typeof c === 'number' ? value * c : c.toBase(value);
+  }
+  if (to === base) return baseValue;
+
+  const c = conversions[to];
+  if (c == null) return null;
+  return typeof c === 'number' ? baseValue / c : c.fromBase(baseValue);
+}
+
+/**
+ * Pick the thresholds and value to classify with: alt-unit thresholds when
+ * the unit has its own, otherwise the value converted to the base unit.
+ * Unknown units fall back to the base thresholds unchanged.
+ */
+function resolveForUnit(testName, range, value, unit) {
+  if (!range) return { thresholds: null, value };
+
+  const normalized = normalizeUnit(unit);
+  if (normalized && range.altUnits) {
     for (const [altUnit, altThresholds] of Object.entries(range.altUnits)) {
-      if (altUnit.toLowerCase() === normalizedUnit) {
-        return altThresholds;
+      if (normalizeUnit(altUnit) === normalized) {
+        return { thresholds: altThresholds, value };
       }
     }
   }
 
-  return range;
+  const converted = convertUnit(testName, value, unit, range.unit);
+  return { thresholds: range, value: converted ?? value };
 }
 
 /**
@@ -312,12 +403,12 @@ function resolveThresholdsForUnit(range, unit) {
  * @param {string} [unit] — optional unit to pick alt-unit thresholds
  * @returns {'safe'|'warn'|'danger'}
  */
-export function classifySeverity(testName, value, unit) {
+export function classifySeverity(testName, rawValue, unit) {
   const range = REFERENCE_RANGES[testName];
   if (!range) return 'safe';
 
-  // Pick thresholds: if an alt-unit matches, use those thresholds
-  const thresholds = resolveThresholdsForUnit(range, unit);
+  // Alt-unit thresholds when available, otherwise the value in the base unit
+  const { thresholds, value } = resolveForUnit(testName, range, rawValue, unit);
 
   // Inverted scale (eGFR: lower is worse)
   if (range.invertedScale) {
@@ -342,9 +433,9 @@ export function classifySeverity(testName, value, unit) {
   return 'safe';
 }
 
-export function deviationFromNormal(testName, value, unit) {
+export function deviationFromNormal(testName, rawValue, unit) {
   const range = REFERENCE_RANGES[testName];
-  const thresholds = resolveThresholdsForUnit(range, unit);
+  const { thresholds, value } = resolveForUnit(testName, range, rawValue, unit);
   const normal = thresholds?.normal;
 
   if (!normal) return 0;

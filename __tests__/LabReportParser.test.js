@@ -4,7 +4,7 @@ jest.mock('../modules/expo-ocr/src/index', () => ({ recognizeText: jest.fn() }))
 
 import { __testing } from '../src/services/LabReportParser';
 
-const { normalizeTestName, extractWithRegex } = __testing;
+const { normalizeTestName, extractWithRegex, extractReportDate } = __testing;
 
 describe('normalizeTestName', () => {
   it.each([
@@ -58,5 +58,31 @@ describe('extractWithRegex', () => {
 
   it('returns nothing for text without lab values', () => {
     expect(extractWithRegex('Patient name withheld\nThank you', 'r2')).toEqual([]);
+  });
+});
+
+describe('extractReportDate', () => {
+  it('reads the labelled date day first', () => {
+    expect(extractReportDate('Patient: A\nReport Date: 03/04/2025 09:30\nGlucose 5.4')).toBe('2025-04-03');
+  });
+
+  it('returns null when the report has no labelled date', () => {
+    expect(extractReportDate('Glucose 5.4 mmol/L 3.9-5.6')).toBeNull();
+    expect(extractReportDate('Please note change in eGFR formula. Effective:26/09/2025.')).toBeNull();
+  });
+
+  it('ignores the date of birth', () => {
+    expect(extractReportDate('Date of Birth: 01/02/1980\nCollected: 16/10/2025')).toBe('2025-10-16');
+  });
+
+  it('reads a date on the line after its label', () => {
+    expect(extractReportDate('Date created\n16/10/2025 10:14')).toBe('2025-10-16');
+  });
+});
+
+describe('extractWithRegex dates', () => {
+  it('flags results whose date was not found on the report', () => {
+    const [first] = extractWithRegex('POTASSIUM 3.60 mmol/L 3.5-5.1', 'r1');
+    expect(first.date_found).toBe(false);
   });
 });

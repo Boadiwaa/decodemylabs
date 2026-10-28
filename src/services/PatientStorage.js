@@ -14,6 +14,8 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { convertUnit } from '../domain/reference_ranges';
+import { formatDate, formatShortDate } from '../utils/dates';
 
 const KEYS = {
   profile: (uid) => `@ll_profile_${uid}`,
@@ -190,31 +192,64 @@ export async function deleteLabResultsByReport(userId, reportId) {
   return saveLabResults(userId, filtered);
 }
 
+/** Rounding for converted values: fewer decimals for larger numbers. */
+function roundConverted(value) {
+  const decimals = Math.abs(value) >= 100 ? 0 : Math.abs(value) >= 10 ? 1 : 2;
+  return Number(value.toFixed(decimals));
+}
+
 /**
  * Build trend data from stored lab results for a given test name.
- * Returns the last N data points sorted by date.
+ * Returns the last N data points sorted by test date, all in the unit of the
+ * most recent result. Points whose unit cannot be converted are left out.
  */
 export function buildTrendFromResults(allResults, testName, maxPoints = 6) {
   const matching = allResults
     .filter((r) => r.test_name === testName && r.numeric_value > 0)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-maxPoints);
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   if (matching.length === 0) return null;
 
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const unit = matching[matching.length - 1].unit || '';
+  let convertedCount = 0;
+  let skippedCount = 0;
+  const values = [];
+
+  for (const r of matching) {
+    const converted = convertUnit(testName, r.numeric_value, r.unit, unit);
+    if (converted == null) {
+      skippedCount += 1;
+      continue;
+    }
+    const changed = converted !== r.numeric_value;
+    if (changed) convertedCount += 1;
+    values.push({
+      date: formatShortDate(r.date),
+      fullDate: formatDate(r.date),
+      isoDate: r.date,
+      value: changed ? roundConverted(converted) : r.numeric_value,
+    });
+  }
 
   return {
     test_name: testName,
-    unit: matching[0].unit || '',
-    values: matching.map((r) => {
-      const d = new Date(r.date);
-      return {
-        date: monthNames[d.getMonth()] || r.date,
-        value: r.numeric_value,
-      };
-    }),
+    unit,
+    values: values.slice(-maxPoints),
+    convertedCount,
+    skippedCount,
   };
+}
+
+/**
+ * Set the test date on every result from one report, e.g. after the patient
+ * confirms or corrects the date read from the report.
+ */
+export async function updateReportResultsDate(userId, reportId, date) {
+  const existing = await getLabResults(userId);
+  const updated = existing.map((r) => (
+    r.source_report_id === reportId ? { ...r, date, date_confirmed: true } : r
+  ));
+  return saveLabResults(userId, updated);
 }
 
 // --------------- Saved AI explanations ---------------

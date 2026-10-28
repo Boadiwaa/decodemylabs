@@ -10,7 +10,8 @@
 
 import llamaService from './LlamaService';
 import { recognizeText } from '../../modules/expo-ocr/src/index';
-import { REFERENCE_RANGES, classifySeverity } from '../domain/reference_ranges';
+import { REFERENCE_RANGES, classifySeverity, normalizeUnit } from '../domain/reference_ranges';
+import { toISODate, parseDateFromText } from '../utils/dates';
 import {
   EXTRACTION_PROMPT,
   IMAGE_EXTRACTION_PROMPT,
@@ -24,70 +25,35 @@ import {
  * @property {number} numeric_value - Parsed numeric, e.g. 240
  * @property {string} unit         - e.g. "mg/dL"
  * @property {string} normal_range - e.g. "<200 mg/dL"
- * @property {string} date         - ISO date
+ * @property {string} date         - ISO test date (today when none was found)
+ * @property {boolean} date_found  - True when the date was read from the report
  * @property {'safe'|'warn'|'danger'} severity
  * @property {string} source_report_id - Links back to the uploaded report
  */
 
 /**
- * Extract the report date from OCR text.
- * Looks for lines containing "Date", "Report Date", "Date Entered", etc.
- * Supports formats: DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, DD-MM-YYYY.
- * Falls back to current date if nothing found.
+ * Extract the test date from OCR text. Only dates next to a label such as
+ * "Date", "Collected" or "Reported" count; other dates on a report (e.g. a
+ * formula's effective date or the date of birth) are ignored. OCR may put the label and the date
+ * on separate lines, so the line after a label is checked too. Numeric dates
+ * are read day first (DD/MM/YYYY, as in Ghana); see parseDateFromText.
  *
  * @param {string} text - The full OCR text
- * @returns {string} ISO date string (YYYY-MM-DD)
+ * @returns {string|null} ISO date (YYYY-MM-DD), or null when none is found
  */
 function extractReportDate(text) {
-  const today = new Date().toISOString().split('T')[0];
-  if (!text) return today;
+  if (!text) return null;
 
-  // 1. Look for date near a "Date" label: "Report Date: 10/12/2025 09:30:00"
-  const dateLinePatterns = [
-    /(?:report\s*date|date\s*entered|date\s*printed|collection\s*date|date)[:\s]+/i,
-  ];
+  const labelPattern = /\b(?:date|collected|collection|received|reported|sampled)\b[^:\d]*[:\s]*/i;
   const lines = text.split(/\n/);
-  for (const line of lines) {
-    for (const dp of dateLinePatterns) {
-      const labelMatch = line.match(dp);
-      if (!labelMatch) continue;
-      const afterLabel = line.slice(labelMatch.index + labelMatch[0].length);
-
-      // Try DD/MM/YYYY or MM/DD/YYYY (with optional time)
-      const slashDate = afterLabel.match(/(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})/);
-      if (slashDate) {
-        const [, a, b, year] = slashDate;
-        // If first number > 12, it must be day (DD/MM/YYYY)
-        const day = parseInt(a) > 12 ? a : b;
-        const month = parseInt(a) > 12 ? b : a;
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      }
-
-      // Try YYYY-MM-DD or YYYY/MM/DD
-      const isoDate = afterLabel.match(/(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})/);
-      if (isoDate) {
-        const [, year, month, day] = isoDate;
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      }
-    }
+  for (let i = 0; i < lines.length; i++) {
+    const labelMatch = lines[i].match(labelPattern);
+    if (!labelMatch || /birth|\bd\.?o\.?b\b/i.test(lines[i])) continue;
+    const date = parseDateFromText(lines[i].slice(labelMatch.index + labelMatch[0].length))
+      || (/^\W*$/.test(lines[i].slice(labelMatch.index + labelMatch[0].length)) ? parseDateFromText(lines[i + 1]) : null);
+    if (date) return date;
   }
-
-  // 2. Fallback: find any date-like pattern anywhere in text
-  const anySlashDate = text.match(/(\d{1,2})[/](\d{1,2})[/](\d{4})/);
-  if (anySlashDate) {
-    const [, a, b, year] = anySlashDate;
-    const day = parseInt(a) > 12 ? a : b;
-    const month = parseInt(a) > 12 ? b : a;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  const anyIsoDate = text.match(/(\d{4})[-](\d{1,2})[-](\d{1,2})/);
-  if (anyIsoDate) {
-    const [, year, month, day] = anyIsoDate;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  return today;
+  return null;
 }
 
 /**
@@ -177,8 +143,11 @@ export async function parseLabReportFromImage(imageUri, reportId, onProgress) {
     console.log('[LabReportParser] Gemma vision output length:', rawOutput?.length || 0);
     console.log('[LabReportParser] Gemma vision output (first 500):', rawOutput?.slice(0, 500));
 
-    const results = parseModelExtractionOutput(rawOutput, reportId);
+    // Read the test date from on-device OCR rather than trusting the model's reading.
+    let results = parseModelExtractionOutput(rawOutput, reportId);
     if (results.length > 0) {
+      const textDate = extractReportDate(await recognizeTextFromImage(imageUri));
+      results = parseModelExtractionOutput(rawOutput, reportId, textDate);
       console.log(`[LabReportParser] Vision extracted ${results.length} lab results`);
       onProgress?.(1.0);
       return results;
@@ -207,7 +176,7 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
   }
 
   // Extract report date from the text upfront for use as fallback
-  const fallbackDate = extractReportDate(reportText);
+  const textDate = extractReportDate(reportText);
 
   onProgress?.(0.1);
 
@@ -226,7 +195,7 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
 
       onProgress?.(0.7);
 
-      const results = parseModelExtractionOutput(rawOutput, reportId, fallbackDate);
+      const results = parseModelExtractionOutput(rawOutput, reportId, textDate);
       if (results.length > 0) {
         onProgress?.(1.0);
         return results;
@@ -251,13 +220,11 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
  * Handles both one-JSON-per-line and JSON array formats.
  * @param {string} rawOutput
  * @param {string} reportId
- * @param {string} [fallbackDate] - Date to use when model returns 'unknown'
+ * @param {string|null} [textDate] - Test date read from the report text
  */
-function parseModelExtractionOutput(rawOutput, reportId, fallbackDate) {
+function parseModelExtractionOutput(rawOutput, reportId, textDate) {
   const results = [];
   if (!rawOutput) return results;
-
-  const dateFallback = fallbackDate || new Date().toISOString().split('T')[0];
 
   // Try to parse as a JSON array first (model may output [{...},{...}])
   const jsonArrayMatch = rawOutput.match(/\[[\s\S]*\]/);
@@ -266,7 +233,7 @@ function parseModelExtractionOutput(rawOutput, reportId, fallbackDate) {
       const arr = JSON.parse(jsonArrayMatch[0]);
       if (Array.isArray(arr)) {
         for (const parsed of arr) {
-          const result = buildResult(parsed, reportId, results.length, dateFallback);
+          const result = buildResult(parsed, reportId, results.length, textDate);
           if (result) results.push(result);
         }
         if (results.length > 0) return results;
@@ -284,7 +251,7 @@ function parseModelExtractionOutput(rawOutput, reportId, fallbackDate) {
 
     try {
       const parsed = JSON.parse(trimmed);
-      const result = buildResult(parsed, reportId, results.length, dateFallback);
+      const result = buildResult(parsed, reportId, results.length, textDate);
       if (result) results.push(result);
     } catch (e) {
       // Try to extract JSON from the line (model may wrap in extra text)
@@ -292,7 +259,7 @@ function parseModelExtractionOutput(rawOutput, reportId, fallbackDate) {
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
-          const result = buildResult(parsed, reportId, results.length, dateFallback);
+          const result = buildResult(parsed, reportId, results.length, textDate);
           if (result) results.push(result);
         } catch (e2) {
           // skip
@@ -311,9 +278,9 @@ function parseModelExtractionOutput(rawOutput, reportId, fallbackDate) {
  * @param {object} parsed - Parsed JSON from model output
  * @param {string} reportId
  * @param {number} index
- * @param {string} [fallbackDate] - Date to use when model returns 'unknown'
+ * @param {string|null} [textDate] - Test date read from the report text
  */
-function buildResult(parsed, reportId, index, fallbackDate) {
+function buildResult(parsed, reportId, index, textDate) {
   if (!parsed || !parsed.test_name || parsed.result_value == null) return null;
 
   const testName = normalizeTestName(parsed.test_name);
@@ -333,7 +300,7 @@ function buildResult(parsed, reportId, index, fallbackDate) {
   if (normalRange && unit) {
     const rangeUnitMatch = normalRange.match(/[a-zA-Zµ/%×³⁶·]+(?:\/[a-zA-Z0-9²³]+)*/g);
     const rangeUnit = rangeUnitMatch ? rangeUnitMatch[rangeUnitMatch.length - 1] : '';
-    if (rangeUnit && rangeUnit.toLowerCase() !== unit.toLowerCase()) {
+    if (rangeUnit && normalizeUnit(rangeUnit) !== normalizeUnit(unit)) {
       // Unit mismatch — the range is in a different unit than the result.
       // Use the correct unit-aware default instead.
       console.log(`[LabReportParser] Unit mismatch for ${testName}: range has "${rangeUnit}" but result is "${unit}" — using default range`);
@@ -342,6 +309,10 @@ function buildResult(parsed, reportId, index, fallbackDate) {
   }
   normalRange = normalRange || getDefaultRange(testName, unit);
 
+  // Dates come only from labelled report text, where the day-first rule is applied
+  // deterministically; the model's date can't be checked.
+  const reportDate = textDate || null;
+
   return {
     id: `${reportId}_${Date.now()}_${index}`,
     test_name: testName,
@@ -349,9 +320,8 @@ function buildResult(parsed, reportId, index, fallbackDate) {
     numeric_value: numericValue,
     unit,
     normal_range: normalRange,
-    date: parsed.date && parsed.date !== 'unknown' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date)
-      ? parsed.date
-      : (fallbackDate || new Date().toISOString().split('T')[0]),
+    date: reportDate || toISODate(),
+    date_found: Boolean(reportDate),
     severity: classifySeverity(testName, numericValue, unit),
     source_report_id: reportId,
   };
@@ -422,7 +392,8 @@ function extractWithRegex(text, reportId) {
           numeric_value: numericValue,
           unit,
           normal_range: normalRange,
-          date: reportDate,
+          date: reportDate || toISODate(),
+          date_found: Boolean(reportDate),
           severity: classifySeverity(tp.name, numericValue, unit),
           source_report_id: reportId,
         });
@@ -596,4 +567,4 @@ export default {
 };
 
 // Internal helpers exposed for unit tests only.
-export const __testing = { normalizeTestName, extractWithRegex };
+export const __testing = { normalizeTestName, extractWithRegex, extractReportDate };
