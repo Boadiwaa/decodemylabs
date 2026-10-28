@@ -24,7 +24,7 @@
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F4FAFA"
+        "backgroundColor": "#1A9E9B"
       }
     },
     "plugins": [
