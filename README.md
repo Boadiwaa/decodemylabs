@@ -85,6 +85,8 @@ src/
 │   ├── LiteRTService.js       ← Android LiteRT-LM adapter + crash-loop guard
 │   ├── LabReportParser.js     ← Extraction pipeline (vision → OCR → regex)
 │   ├── PatientStorage.js      ← AsyncStorage CRUD for on-device records
+│   ├── DataBackup.js          ← Backup export (share sheet) and restore
+│   ├── AppLock.js             ← Fingerprint / face / phone PIN check
 │   └── AkanTTSService.js      ← Akan TTS via Hugging Face models + expo-av
 │
 ├── domain/

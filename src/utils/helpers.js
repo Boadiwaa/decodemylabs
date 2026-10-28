@@ -51,14 +51,6 @@ export function getSeverityConfig(severity) {
   }
 }
 
-export async function encryptDemo(plainText) {
-  const digest = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    plainText
-  );
-  return digest;
-}
-
 // Salted, iterated SHA-256 for on-device credentials. expo-crypto has no
 // bcrypt/PBKDF2, so this raises the bar without claiming production strength.
 // Each round is a native call; 1000 rounds took ~6 s per login on an emulator.

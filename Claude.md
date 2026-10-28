@@ -66,7 +66,9 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - LabReportParser.js - Image/OCR parsing pipeline and structured extraction
 - LlamaService.js - Inference entry point; routes to llama.rn or LiteRT
 - LiteRTService.js - Android LiteRT-LM adapter (Gemma 4) with a crash-loop guard
-- PatientStorage.js - Persistent storage API
+- PatientStorage.js - Persistent storage API (health data, app settings, backup read/write)
+- DataBackup.js - Export a backup file via the share sheet and restore one (not encrypted)
+- AppLock.js - Biometric / phone PIN check via expo-local-authentication
 - AkanTTSService.js - Akan TTS support
 - ModelSetup.js - Model setup utilities
 
@@ -87,6 +89,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - AIInsightCard.js - Insight and confidence presentation
 - ModelStatusBar.js - Model readiness bar
 - Toast.js - Toast feedback
+- AppLockGate.js - Covers the app until unlock when App lock is on
 
 ### Native Modules
 - modules/expo-ocr - On-device OCR (Apple Vision / ML Kit)

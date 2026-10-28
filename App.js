@@ -17,12 +17,13 @@ import MedicalHistoryScreen from './src/screens/MedicalHistoryScreen';
 import DrugHistoryScreen from './src/screens/DrugHistoryScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import Toast from './src/components/Toast';
+import AppLockGate from './src/components/AppLockGate';
 import Colors from './src/constants/colors';
 
 const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
-  const { isAuthenticated, isLoading, needsOnboarding } = useAuth();
+  const { user, isAuthenticated, isLoading, needsOnboarding } = useAuth();
 
   if (isLoading) {
     return (
@@ -32,7 +33,7 @@ function AppNavigator() {
     );
   }
 
-  return (
+  const navigation = (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
@@ -95,6 +96,12 @@ function AppNavigator() {
       </Stack.Navigator>
     </NavigationContainer>
   );
+
+  // Signed-in patients may have App lock on; the gate covers the app until they unlock.
+  if (isAuthenticated && !needsOnboarding && user?.id) {
+    return <AppLockGate key={user.id} userId={user.id}>{navigation}</AppLockGate>;
+  }
+  return navigation;
 }
 
 export default function App() {

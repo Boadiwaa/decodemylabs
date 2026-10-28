@@ -1,42 +1,20 @@
  import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, Alert, Image } from 'react-native';
+import {
+  View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, Alert, Image, ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { getDrugHistory, getMedicalHistory } from '../services/PatientStorage';
-import { encryptDemo } from '../utils/helpers';
+import {
+  getAppSettings, getDrugHistory, getMedicalHistory, saveAppSettings,
+} from '../services/PatientStorage';
+import { authenticate, getLockAvailability } from '../services/AppLock';
+import { exportBackup, pickBackup, restoreBackup } from '../services/DataBackup';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
-
-const SETTINGS_SECTIONS = [
-  {
-    title: 'Privacy & Security',
-    items: [
-      { id: 'biometric', label: 'Biometric Lock', icon: 'finger-print', toggle: true, defaultValue: true },
-      { id: 'encrypt', label: 'Data Encryption', icon: 'lock-closed', toggle: true, defaultValue: true },
-      { id: 'autolock', label: 'Auto-Lock (5 min)', icon: 'timer', toggle: true, defaultValue: false },
-      { id: 'audit', label: 'Access Audit Log', icon: 'list', toggle: false },
-    ],
-  },
-  {
-    title: 'Notifications',
-    items: [
-      { id: 'push', label: 'Push Notifications', icon: 'notifications', toggle: true, defaultValue: true },
-      { id: 'critical', label: 'Critical Alerts Only', icon: 'alert-circle', toggle: true, defaultValue: false },
-      { id: 'reminder_notif', label: 'Reminder Alerts', icon: 'calendar', toggle: true, defaultValue: true },
-    ],
-  },
-  {
-    title: 'Data Management',
-    items: [
-      { id: 'export', label: 'Export Patient Data', icon: 'download', toggle: false },
-      { id: 'clear', label: 'Clear Local Cache', icon: 'trash', toggle: false, destructive: true },
-    ],
-  },
-];
 
 function savedSummary(items, singular, plural) {
   if (!items.length) return 'None saved';
@@ -57,8 +35,106 @@ export default function SecurityScreen({ navigation }) {
       if (!user?.id) return;
       getMedicalHistory(user.id).then(setConditions);
       getDrugHistory(user.id).then(setMedicines);
+      getAppSettings(user.id).then((settings) => setAppLock(settings.appLock));
     }, [user?.id])
   );
+
+  // Turning the lock on or off asks for the fingerprint/face/PIN first, so a
+  // patient can't lock themselves out and someone else can't switch it off.
+  const handleAppLockToggle = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const turningOn = !appLock;
+    if (turningOn) {
+      const availability = await getLockAvailability();
+      if (!availability.available) {
+        Alert.alert('App lock', availability.message);
+        return;
+      }
+    }
+    const result = await authenticate(turningOn ? 'Turn on app lock' : 'Turn off app lock');
+    if (!result.success) return;
+    await saveAppSettings(user.id, { appLock: turningOn });
+    setAppLock(turningOn);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [appLock, user?.id]);
+
+  const runExport = useCallback(async () => {
+    setBusy('export');
+    try {
+      await exportBackup(user.id);
+    } catch (e) {
+      console.warn('[Settings] Export failed:', e);
+      Alert.alert('Backup', "We couldn't create your backup. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }, [user?.id]);
+
+  const handleExport = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Save a backup',
+      'The backup file holds your health information, conditions, medicines and report photos. '
+        + "It is not password-protected, so save it somewhere private (for example your own Google Drive) "
+        + 'and avoid sending it in chats.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Continue', onPress: runExport },
+      ],
+    );
+  }, [runExport]);
+
+  const handleImport = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBusy('import');
+    let picked;
+    try {
+      picked = await pickBackup();
+    } finally {
+      setBusy(null);
+    }
+    if (!picked) return;
+    if (!picked.ok) {
+      Alert.alert('Restore', picked.reason);
+      return;
+    }
+
+    const s = picked.summary;
+    Alert.alert(
+      'Restore this backup?',
+      `Backup from ${s.exportedOn}: ${s.reports} report${s.reports !== 1 ? 's' : ''}, `
+        + `${s.results} result${s.results !== 1 ? 's' : ''}, ${s.conditions} condition${s.conditions !== 1 ? 's' : ''} `
+        + `and ${s.medicines} medicine${s.medicines !== 1 ? 's' : ''}.\n\n`
+        + 'This replaces the health information currently in the app.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Replace my data',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy('import');
+            try {
+              await restoreBackup(user.id, picked.backup);
+              setConditions(await getMedicalHistory(user.id));
+              setMedicines(await getDrugHistory(user.id));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Restore', 'Your backup has been restored.');
+            } catch (e) {
+              console.warn('[Settings] Restore failed:', e);
+              Alert.alert('Restore', "We couldn't restore this backup. Your existing data was not changed.");
+            } finally {
+              setBusy(null);
+            }
+          },
+        },
+      ],
+    );
+  }, [user?.id]);
+
+  const dataItems = [
+    { id: 'export', label: 'Save a backup', detail: 'Reports, results, conditions and medicines', icon: 'download', onPress: handleExport },
+    { id: 'import', label: 'Restore from a backup', detail: 'Replaces the data in the app', icon: 'cloud-upload', onPress: handleImport },
+  ];
 
   const healthItems = [
     {
@@ -76,36 +152,8 @@ export default function SecurityScreen({ navigation }) {
       route: 'EditDrugHistory',
     },
   ];
-  const [toggles, setToggles] = useState(() => {
-    const initial = {};
-    SETTINGS_SECTIONS.forEach(section =>
-      section.items.forEach(item => {
-        if (item.toggle) initial[item.id] = item.defaultValue ?? false;
-      })
-    );
-    return initial;
-  });
-
-  const handleToggle = useCallback((id) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setToggles(prev => ({ ...prev, [id]: !prev[id] }));
-  }, []);
-
-  const handleAction = useCallback(async (item) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (item.id === 'audit') {
-      Alert.alert('Audit Log', 'Last accessed: Sep 24, 2023 — 14:32\nAccess count today: 3\nNo anomalies detected.');
-    } else if (item.id === 'export') {
-      const hash = await encryptDemo('patient-data-export');
-      Alert.alert('Export Ready', `Encrypted hash:\n${hash.slice(0, 24)}…\n\nData would be exported securely.`);
-    } else if (item.id === 'clear') {
-      Alert.alert('Clear Cache', 'This will remove locally cached data. Continue?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', style: 'destructive', onPress: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) },
-      ]);
-    }
-  }, []);
-
+  const [appLock, setAppLock] = useState(false);
+  const [busy, setBusy] = useState(null); // 'export' | 'import' | null
   return (
     <View style={styles.screen}>
       {/* Header */}
@@ -179,55 +227,61 @@ export default function SecurityScreen({ navigation }) {
           </Text>
         </Animated.View>
 
-        {/* Settings sections */}
-        {SETTINGS_SECTIONS.map((section, si) => (
-          <Animated.View
-            key={section.title}
-            entering={FadeInDown.delay(120 + si * 80).springify().damping(18)}
-            style={styles.section}
-          >
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.sectionCard}>
-              {section.items.map((item, ii) => (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={item.toggle ? 1 : 0.6}
-                  onPress={() => !item.toggle && handleAction(item)}
-                  style={[
-                    styles.settingRow,
-                    ii < section.items.length - 1 && styles.settingRowBorder,
-                  ]}
-                >
-                  <View style={[styles.settingIcon, {
-                    backgroundColor: item.destructive ? Colors.dangerBg : Colors.tealLight,
-                  }]}>
-                    <Ionicons
-                      name={item.icon}
-                      size={18}
-                      color={item.destructive ? Colors.danger : Colors.tealDark}
-                    />
-                  </View>
-                  <Text style={[
-                    styles.settingLabel,
-                    item.destructive && { color: Colors.danger },
-                  ]}>
-                    {item.label}
-                  </Text>
-                  {item.toggle ? (
-                    <Switch
-                      value={toggles[item.id]}
-                      onValueChange={() => handleToggle(item.id)}
-                      trackColor={{ false: Colors.border, true: Colors.tealMuted }}
-                      thumbColor={toggles[item.id] ? Colors.tealDark : Colors.textMuted}
-                    />
-                  ) : (
-                    <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-                  )}
-                </TouchableOpacity>
-              ))}
+        {/* Privacy */}
+        <Animated.View entering={FadeInDown.delay(150).springify().damping(18)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Privacy</Text>
+          <View style={styles.sectionCard}>
+            <View style={styles.settingRow}>
+              <View style={[styles.settingIcon, { backgroundColor: Colors.tealLight }]}>
+                <Ionicons name="finger-print" size={18} color={Colors.tealDark} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingLabel}>App lock</Text>
+                <Text style={styles.settingDetail}>Fingerprint, face or phone PIN to open the app</Text>
+              </View>
+              <Switch
+                value={appLock}
+                onValueChange={handleAppLockToggle}
+                trackColor={{ false: Colors.border, true: Colors.tealMuted }}
+                thumbColor={appLock ? Colors.teal : Colors.white}
+                accessibilityLabel="App lock"
+              />
             </View>
-          </Animated.View>
-        ))}
+          </View>
+        </Animated.View>
+
+        {/* Your data */}
+        <Animated.View entering={FadeInDown.delay(210).springify().damping(18)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Your data</Text>
+          <View style={styles.sectionCard}>
+            {dataItems.map((item, ii) => (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.6}
+                onPress={item.onPress}
+                disabled={!!busy}
+                style={[styles.settingRow, ii < dataItems.length - 1 && styles.settingRowBorder]}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.label}. ${item.detail}`}
+              >
+                <View style={[styles.settingIcon, { backgroundColor: Colors.tealLight }]}>
+                  <Ionicons name={item.icon} size={18} color={Colors.tealDark} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingLabel}>{item.label}</Text>
+                  <Text style={styles.settingDetail}>{item.detail}</Text>
+                </View>
+                {busy === item.id
+                  ? <ActivityIndicator size="small" color={Colors.teal} />
+                  : <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.sectionHint}>
+            Everything is kept on this phone. A backup lets you move to a new phone or recover after
+            reinstalling. Backup files are not password-protected.
+          </Text>
+        </Animated.View>
 
         {/* About card */}
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.aboutCard}>

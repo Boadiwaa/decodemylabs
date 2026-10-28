@@ -1,8 +1,9 @@
 /**
  * PatientStorage — on-device persistence for all patient data.
  *
- * Every piece of patient information is stored ONLY on-device
- * using AsyncStorage.  Nothing leaves the phone.
+ * Every piece of patient information is stored on-device using
+ * AsyncStorage (not encrypted). It leaves the phone only in a backup file
+ * the patient chooses to export, or as explanation text for Akan playback.
  *
  * Key schema:
  *   @ll_profile_{userId}       → PatientProfile (demographics, etc.)
@@ -11,6 +12,7 @@
  *   @ll_lab_reports_{userId}   → LabReport[]
  *   @ll_lab_results_{userId}   → ParsedLabResult[]
  *   @ll_explanations_{userId}  → { [cacheKey]: SavedExplanation }
+ *   @ll_settings_{userId}      → AppSettings (this device only; not backed up)
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,7 +26,11 @@ const KEYS = {
   labReports: (uid) => `@ll_lab_reports_${uid}`,
   labResults: (uid) => `@ll_lab_results_${uid}`,
   explanations: (uid) => `@ll_explanations_${uid}`,
+  settings: (uid) => `@ll_settings_${uid}`,
 };
+
+// Health data included in backups. Settings (e.g. app lock) stay with the device.
+const BACKUP_KEYS = ['profile', 'medicalHx', 'drugHx', 'labReports', 'labResults', 'explanations'];
 
 // --------------- helpers ---------------
 
@@ -316,6 +322,51 @@ export async function clearAllPatientData(userId) {
     return true;
   } catch (e) {
     console.warn('[PatientStorage] clear error:', e);
+    return false;
+  }
+}
+
+// --------------- App settings ---------------
+
+/**
+ * @typedef {Object} AppSettings
+ * @property {boolean} appLock - Ask for biometrics / device PIN when opening the app
+ */
+
+const DEFAULT_SETTINGS = { appLock: false };
+
+export async function getAppSettings(userId) {
+  return { ...DEFAULT_SETTINGS, ...((await _get(KEYS.settings(userId))) || {}) };
+}
+
+export async function saveAppSettings(userId, changes) {
+  const current = await getAppSettings(userId);
+  return _set(KEYS.settings(userId), { ...current, ...changes });
+}
+
+// --------------- Backup ---------------
+
+/** All of a user's health data, keyed by BACKUP_KEYS name (missing entries are null). */
+export async function readBackupData(userId) {
+  const entries = await Promise.all(BACKUP_KEYS.map(async (name) => [name, await _get(KEYS[name](userId))]));
+  return Object.fromEntries(entries);
+}
+
+/** Replace a user's health data with backup data. Names not in BACKUP_KEYS are ignored. */
+export async function writeBackupData(userId, data) {
+  const toSet = [];
+  const toRemove = [];
+  for (const name of BACKUP_KEYS) {
+    const value = data?.[name];
+    if (value == null) toRemove.push(KEYS[name](userId));
+    else toSet.push([KEYS[name](userId), JSON.stringify(value)]);
+  }
+  try {
+    if (toSet.length) await AsyncStorage.multiSet(toSet);
+    if (toRemove.length) await AsyncStorage.multiRemove(toRemove);
+    return true;
+  } catch (e) {
+    console.warn('[PatientStorage] restore error:', e);
     return false;
   }
 }
