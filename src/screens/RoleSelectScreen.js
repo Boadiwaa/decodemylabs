@@ -57,7 +57,7 @@ export default function RoleSelectScreen({ navigation }) {
               <View style={[styles.roleIcon, { backgroundColor: Colors.teal + '20' }]}>
                 <Ionicons name="person" size={28} color={Colors.teal} />
               </View>
-              <Text style={styles.roleTitle}>Get Started</Text>
+              <Text style={styles.roleTitle}>Get started</Text>
               <Text style={styles.roleDesc}>
                 Sign up to view your lab results, hear explanations in multiple languages, and track your health over time.
               </Text>
@@ -79,7 +79,7 @@ export default function RoleSelectScreen({ navigation }) {
             }}
             activeOpacity={0.7}
           >
-            <Text style={styles.loginLink}>Log In</Text>
+            <Text style={styles.loginLink}>Log in</Text>
           </TouchableOpacity>
         </Animated.View>
       </LinearGradient>

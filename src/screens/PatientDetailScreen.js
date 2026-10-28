@@ -155,7 +155,7 @@ export default function PatientDetailScreen({ route, navigation }) {
                 <Ionicons name={aSev.icon} size={20} color={aSev.color} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.alertLabel, { color: aSev.color }]}>
-                    {aSev.label === 'Critical' ? 'Needs Your Attention' : 'Worth Keeping an Eye On'}
+                    {aSev.label === 'Critical' ? 'Needs your attention' : 'Worth keeping an eye on'}
                   </Text>
                   <Text style={styles.alertMessage}>{a.alert_message}</Text>
                 </View>

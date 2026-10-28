@@ -12,7 +12,7 @@ const { width } = Dimensions.get('window');
 const FEATURES = [
   {
     icon: 'flask',
-    title: 'Smart Lab Interpretation',
+    title: 'Smart lab interpretation',
     desc: 'AI-powered analysis of blood work, metabolic panels, and more — with clinical context.',
   },
   {
@@ -27,7 +27,7 @@ const FEATURES = [
   },
   {
     icon: 'trending-up',
-    title: 'Trend Analysis',
+    title: 'Trend analysis',
     desc: 'Track lab values over time. See patterns, catch changes early.',
   },
 ];
@@ -85,7 +85,7 @@ export default function LandingScreen({ navigation }) {
               activeOpacity={0.85}
               style={styles.ctaButton}
             >
-              <Text style={styles.ctaText}>Get Started</Text>
+              <Text style={styles.ctaText}>Get started</Text>
               <View style={styles.ctaArrow}>
                 <Ionicons name="arrow-forward" size={18} color={Colors.tealDark} />
               </View>
@@ -152,7 +152,7 @@ export default function LandingScreen({ navigation }) {
               activeOpacity={0.85}
               style={styles.bottomCtaBtn}
             >
-              <Text style={styles.bottomCtaBtnText}>Open Dashboard</Text>
+              <Text style={styles.bottomCtaBtnText}>Open dashboard</Text>
               <Ionicons name="arrow-forward" size={16} color={Colors.tealDark} />
             </TouchableOpacity>
           </LinearGradient>

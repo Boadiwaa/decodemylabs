@@ -310,7 +310,7 @@ export default function DemographicsScreen({ navigation }) {
               <View style={styles.modalOverlay}>
                 <View style={styles.countryPickerModal}>
                   <View style={styles.countryPickerHeader}>
-                    <Text style={styles.countryPickerTitle}>Select Country</Text>
+                    <Text style={styles.countryPickerTitle}>Select country</Text>
                     <TouchableOpacity
                       onPress={() => setShowCountryPicker(false)}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

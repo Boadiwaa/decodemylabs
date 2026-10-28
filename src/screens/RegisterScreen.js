@@ -95,7 +95,7 @@ export default function RegisterScreen({ route, navigation }) {
                 color={Colors.tealDark}
               />
               <Text style={[styles.roleBadgeText, { color: Colors.tealDark }]}>
-                Patient Registration
+                Patient registration
               </Text>
             </View>
             <Text style={styles.title}>Create your account</Text>
@@ -108,7 +108,7 @@ export default function RegisterScreen({ route, navigation }) {
           <View style={styles.form}>
             {/* Full Name */}
             <Animated.View entering={FadeInDown.delay(200).springify()}>
-              <Text style={styles.inputLabel}>Full Name</Text>
+              <Text style={styles.inputLabel}>Full name</Text>
               <View style={styles.inputWrap}>
                 <Ionicons name="person-outline" size={18} color={Colors.textMuted} />
                 <TextInput
@@ -124,7 +124,7 @@ export default function RegisterScreen({ route, navigation }) {
 
             {/* Email */}
             <Animated.View entering={FadeInDown.delay(250).springify()}>
-              <Text style={styles.inputLabel}>Email Address</Text>
+              <Text style={styles.inputLabel}>Email address</Text>
               <View style={styles.inputWrap}>
                 <Ionicons name="mail-outline" size={18} color={Colors.textMuted} />
                 <TextInput
@@ -145,7 +145,7 @@ export default function RegisterScreen({ route, navigation }) {
 
             {/* Phone */}
             <Animated.View entering={FadeInDown.delay(300).springify()}>
-              <Text style={styles.inputLabel}>Phone Number</Text>
+              <Text style={styles.inputLabel}>Phone number</Text>
               <View style={styles.inputWrap}>
                 <Ionicons name="call-outline" size={18} color={Colors.textMuted} />
                 <TextInput
@@ -212,7 +212,7 @@ export default function RegisterScreen({ route, navigation }) {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Text style={styles.submitBtnText}>Create Account</Text>
+                  <Text style={styles.submitBtnText}>Create account</Text>
                   <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </>
               )}
@@ -229,7 +229,7 @@ export default function RegisterScreen({ route, navigation }) {
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.loginLink}>Log In</Text>
+              <Text style={styles.loginLink}>Log in</Text>
             </TouchableOpacity>
           </Animated.View>
 

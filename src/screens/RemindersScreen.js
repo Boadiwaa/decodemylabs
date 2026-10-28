@@ -121,7 +121,7 @@ export default function RemindersScreen() {
             </View>
             <View style={[styles.summaryItem, { borderRightWidth: 1, borderRightColor: Colors.borderLight }]}>
               <Text style={[styles.summaryValue, { color: Colors.warn }]}>{upcoming.length}</Text>
-              <Text style={styles.summaryLabel}>This Week</Text>
+              <Text style={styles.summaryLabel}>This week</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryValue, { color: Colors.tealDark }]}>{later.length}</Text>
@@ -131,7 +131,7 @@ export default function RemindersScreen() {
         </Animated.View>
 
         {renderSection('Overdue', overdue, 'alert-circle-outline')}
-        {renderSection('This Week', upcoming, 'time-outline')}
+        {renderSection('This week', upcoming, 'time-outline')}
         {renderSection('Scheduled', later, 'calendar-outline')}
 
         {sortedReminders.length === 0 && (

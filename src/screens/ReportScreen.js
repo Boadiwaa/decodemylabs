@@ -158,7 +158,7 @@ export default function ReportScreen({ route, navigation }) {
 
         {keyFindings.length > 0 && (
           <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.card}>
-            <Text style={styles.cardTitle}>Key Findings</Text>
+            <Text style={styles.cardTitle}>Key findings</Text>
             {keyFindings.map((finding, idx) => {
               const sev = getSeverityConfig(finding.severity);
               return (

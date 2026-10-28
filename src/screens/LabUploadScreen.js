@@ -442,7 +442,7 @@ export default function LabUploadScreen({ navigation }) {
         >
           <Ionicons name="arrow-back" size={20} color={Colors.navy} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Lab Reports</Text>
+        <Text style={styles.headerTitle}>Your lab reports</Text>
         <View style={{ width: 40 }} />
       </Animated.View>
 
@@ -680,7 +680,7 @@ export default function LabUploadScreen({ navigation }) {
                 onPress={handleManualSave}
               >
                 <Ionicons name="add-circle" size={18} color="#fff" />
-                <Text style={styles.addResultBtnText}>Add Result</Text>
+                <Text style={styles.addResultBtnText}>Add result</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -709,7 +709,7 @@ export default function LabUploadScreen({ navigation }) {
                   <Ionicons name="camera" size={28} color={Colors.tealDark} />
                 </View>
                 <View>
-                  <Text style={styles.uploadTitle}>Take a Photo</Text>
+                  <Text style={styles.uploadTitle}>Take a photo</Text>
                   <Text style={styles.uploadDesc}>Point your camera at the lab report page</Text>
                 </View>
               </TouchableOpacity>
@@ -727,7 +727,7 @@ export default function LabUploadScreen({ navigation }) {
                   <Ionicons name="images" size={28} color={Colors.indigo} />
                 </View>
                 <View>
-                  <Text style={styles.uploadTitle}>From Gallery</Text>
+                  <Text style={styles.uploadTitle}>From gallery</Text>
                   <Text style={styles.uploadDesc}>Pick a photo of your lab report</Text>
                 </View>
               </TouchableOpacity>

@@ -261,7 +261,7 @@ export default function MetricDetailScreen({ route, navigation }) {
         </Animated.View>
 
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyTitle}>No Metric Found</Text>
+          <Text style={styles.emptyTitle}>No metric found</Text>
           <Text style={styles.emptyText}>This metric is not available in the selected report yet.</Text>
         </View>
       </View>
@@ -316,14 +316,14 @@ export default function MetricDetailScreen({ route, navigation }) {
         )}
 
         <TTSPlayer
-          title="What This May Mean"
+          title="What this may mean"
           explanations={explanations}
           sourceLabels={sourceLabels}
           statusText={statusText}
         />
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.card}>
-          <Text style={styles.cardTitle}>Next Steps</Text>
+          <Text style={styles.cardTitle}>Next steps</Text>
           {nextSteps.map((step, idx) => (
             <View key={`${step}_${idx}`} style={styles.stepRow}>
               <View style={styles.stepDot} />

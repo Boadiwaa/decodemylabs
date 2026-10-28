@@ -130,7 +130,7 @@ export default function TrendsScreen({ navigation }) {
                 accessibilityLabel="Upload a lab report"
               >
                 <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-                <Text style={styles.emptyBtnText}>Upload Lab Report</Text>
+                <Text style={styles.emptyBtnText}>Upload lab report</Text>
               </TouchableOpacity>
             </Animated.View>
           )
@@ -287,7 +287,7 @@ export default function TrendsScreen({ navigation }) {
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.chartCard}>
-            <Text style={styles.chartTitle}>No Trend Data Yet</Text>
+            <Text style={styles.chartTitle}>No trend data yet</Text>
             <Text style={styles.chartPatient}>Upload more reports to build trend lines over time.</Text>
           </Animated.View>
         )}
@@ -305,7 +305,7 @@ export default function TrendsScreen({ navigation }) {
               accessibilityLabel="Open full report"
             >
               <Ionicons name="document-text-outline" size={13} color={Colors.tealDark} />
-              <Text style={styles.reportBtnText}>Open Report</Text>
+              <Text style={styles.reportBtnText}>Open report</Text>
             </TouchableOpacity>
           </View>
 

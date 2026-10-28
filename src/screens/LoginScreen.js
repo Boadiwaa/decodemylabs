@@ -83,7 +83,7 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.form}>
             {/* Email */}
             <Animated.View entering={FadeInDown.delay(200).springify()}>
-              <Text style={styles.inputLabel}>Email Address</Text>
+              <Text style={styles.inputLabel}>Email address</Text>
               <View style={styles.inputWrap}>
                 <Ionicons name="mail-outline" size={18} color={Colors.textMuted} />
                 <TextInput
@@ -144,7 +144,7 @@ export default function LoginScreen({ navigation }) {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Text style={styles.submitBtnText}>Log In</Text>
+                  <Text style={styles.submitBtnText}>Log in</Text>
                   <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </>
               )}
@@ -161,7 +161,7 @@ export default function LoginScreen({ navigation }) {
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.registerLink}>Sign Up</Text>
+              <Text style={styles.registerLink}>Sign up</Text>
             </TouchableOpacity>
           </Animated.View>
 

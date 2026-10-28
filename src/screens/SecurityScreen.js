@@ -301,10 +301,10 @@ export default function SecurityScreen({ navigation }) {
           <TouchableOpacity
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              Alert.alert('Log Out', 'Are you sure you want to log out?', [
+              Alert.alert('Log out', 'Are you sure you want to log out?', [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                  text: 'Log Out',
+                  text: 'Log out',
                   style: 'destructive',
                   onPress: () => logout(),
                 },
@@ -314,7 +314,7 @@ export default function SecurityScreen({ navigation }) {
             style={styles.logoutBtn}
           >
             <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
-            <Text style={styles.logoutText}>Log Out</Text>
+            <Text style={styles.logoutText}>Log out</Text>
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>

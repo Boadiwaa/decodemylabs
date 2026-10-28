@@ -126,7 +126,7 @@ export default function DashboardScreen({ navigation }) {
               <Ionicons name="cloud-upload-outline" size={22} color={Colors.teal} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.uploadTitle}>Upload a Lab Report</Text>
+              <Text style={styles.uploadTitle}>Upload a lab report</Text>
               <Text style={styles.uploadSub}>Pick a photo or snap one with your camera</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
@@ -152,7 +152,7 @@ export default function DashboardScreen({ navigation }) {
               accessibilityLabel="Past reports"
             >
               <Ionicons name="time-outline" size={14} color={activeTab === 'past' ? Colors.teal : Colors.textMuted} />
-              <Text style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}>Past Reports</Text>
+              <Text style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}>Past reports</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -204,7 +204,7 @@ export default function DashboardScreen({ navigation }) {
                   accessibilityLabel="Upload your first lab report"
                 >
                   <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-                  <Text style={styles.emptyBtnText}>Upload Lab Report</Text>
+                  <Text style={styles.emptyBtnText}>Upload lab report</Text>
                 </TouchableOpacity>
               </Animated.View>
             )}
