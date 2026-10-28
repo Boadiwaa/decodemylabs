@@ -925,6 +925,27 @@ class LlamaService {
 
   // -- Model management helpers --
 
+  /**
+   * Whether this phone could run the LiteRT model if it were downloaded.
+   * Checked before offering the ~2.6 GB download, using the same rules as loading.
+   * @returns {{ ok: boolean, reason?: string }}
+   */
+  checkDeviceCanRunLiteRT() {
+    if (Platform.OS !== 'android' || LOCAL_INFERENCE_RUNTIME === 'llama') {
+      return { ok: false, reason: 'The downloadable AI model runs on Android only for now.' };
+    }
+    try {
+      this._enforceAndroidGuardrails();
+    } catch (e) {
+      return { ok: false, reason: e.message };
+    }
+    liteRTService.refreshNativeBinding();
+    if (!liteRTService.isNativeAvailable) {
+      return { ok: false, reason: 'This version of the app does not include the AI runtime.' };
+    }
+    return { ok: true };
+  }
+
   /** Check if model exists on device (documents dir or external storage) */
   async isModelDownloaded() {
     if (Platform.OS === 'android' && LOCAL_INFERENCE_RUNTIME !== 'llama') {

@@ -1,93 +1,182 @@
 /**
- * Model setup utilities for development.
+ * ModelSetup — downloads the Gemma 4 LiteRT model the first time it's needed (Android).
  *
- * During development, the GGUF model needs to be accessible on the device.
- * This module provides helpers to:
- * 1. Check if the model exists in the app's documents directory
- * 2. Copy the model from a source path (for dev/testing)
- * 3. Report model file info
+ * The model (~2.6 GB) is too large to ship inside the app, so it's fetched once
+ * from Hugging Face, pinned to a fixed revision, into the folder LiteRTService
+ * already checks. The download is a plain file request: nothing about the
+ * patient is sent.
  *
- * In production, the model would be downloaded from a CDN on first launch.
+ * It downloads to a ".part" file first and only moves it into place once the
+ * size matches, so a half-finished file is never loaded. If the download
+ * stops (paused, connection lost, app closed), it carries on from the bytes
+ * already saved the next time it starts.
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { LITERT_MODEL_FILENAME } from '../constants/inference';
 
-const MODEL_FILENAME = 'gemma-4-E2B-it-Q4_0.gguf';
+const MODEL_REPO = 'litert-community/gemma-4-E2B-it-litert-lm';
+const MODEL_REVISION = '1caa527c1e88b55f046fcd8d2b4265606680663d';
 
-/** Get the target path where the model should live */
-export function getModelTargetPath() {
-  return `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
+export const MODEL_DOWNLOAD = {
+  url: `https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REVISION}/gemma-4-E2B-it.litertlm`,
+  bytes: 2588147712,
+};
+
+// Leave room on the phone after the download so other apps keep working.
+const SPACE_MARGIN_BYTES = 500 * 1024 * 1024;
+
+const targetPath = () => `${FileSystem.documentDirectory}${LITERT_MODEL_FILENAME}`;
+const partPath = () => `${targetPath()}.part`;
+
+/** "2.6 GB" style size for patient-facing text. */
+export function formatGB(bytes) {
+  return `${(bytes / 1e9).toFixed(1)} GB`;
 }
 
-/** Check if the model is already in the documents directory */
-export async function isModelAvailable() {
-  const path = getModelTargetPath();
-  const info = await FileSystem.getInfoAsync(path);
-  return {
-    exists: info.exists,
-    path,
-    size: info.exists ? info.size : 0,
-    sizeGB: info.exists ? (info.size / (1024 * 1024 * 1024)).toFixed(2) : '0',
-  };
+async function fileSize(uri) {
+  const info = await FileSystem.getInfoAsync(uri);
+  return info.exists ? info.size || 0 : 0;
 }
 
 /**
- * Copy the model from a source URI to the documents directory.
- * Useful for development when the model file is on the host machine.
- *
- * @param {string} sourceUri - file:// URI or http(s):// URL
- * @param {function} [onProgress] - Progress callback ({ totalBytesWritten, totalBytesExpectedToWrite })
- * @returns {Promise<string>} The destination path
+ * Download state shared with the UI.
+ * status: idle | downloading | paused | done | error
  */
-export async function copyModelToDocuments(sourceUri, onProgress = null) {
-  const target = getModelTargetPath();
-
-  // Check if already exists
-  const existing = await FileSystem.getInfoAsync(target);
-  if (existing.exists) {
-    console.log('[ModelSetup] Model already exists at:', target);
-    return target;
+class ModelDownloader {
+  constructor() {
+    this._state = { status: 'idle', bytesWritten: 0, totalBytes: MODEL_DOWNLOAD.bytes, error: null };
+    this._listeners = new Set();
+    this._resumable = null;
+    this._pausing = false;
+    this._lastNotifiedAt = 0;
   }
 
-  if (sourceUri.startsWith('http')) {
-    // Download from URL
-    const downloadResumable = FileSystem.createDownloadResumable(
-      sourceUri,
-      target,
-      {},
-      onProgress
-        ? (progress) => onProgress({
-            totalBytesWritten: progress.totalBytesWritten,
-            totalBytesExpectedToWrite: progress.totalBytesExpectedToWrite,
-            percent: ((progress.totalBytesWritten / progress.totalBytesExpectedToWrite) * 100).toFixed(1),
-          })
-        : undefined
-    );
-    const result = await downloadResumable.downloadAsync();
-    return result.uri;
-  } else {
-    // Copy from local file
-    await FileSystem.copyAsync({ from: sourceUri, to: target });
-    return target;
+  get state() {
+    return this._state;
+  }
+
+  subscribe(fn) {
+    this._listeners.add(fn);
+    fn(this._state);
+    return () => this._listeners.delete(fn);
+  }
+
+  _set(patch) {
+    this._state = { ...this._state, ...patch };
+    this._listeners.forEach((fn) => {
+      try { fn(this._state); } catch (_) {}
+    });
+  }
+
+  /** Bytes already saved from an earlier, unfinished download (shown as "paused"). */
+  async loadSavedProgress() {
+    if (this._state.status !== 'idle') return;
+    const saved = await fileSize(partPath());
+    if (saved > 0) this._set({ status: 'paused', bytesWritten: saved });
+  }
+
+  /** Start, or continue, the download. Resolves when it finishes, pauses or fails. */
+  async start() {
+    if (this._state.status === 'downloading') return;
+    this._pausing = false;
+
+    const already = await fileSize(partPath());
+    const free = await FileSystem.getFreeDiskStorageAsync().catch(() => null);
+    const needed = MODEL_DOWNLOAD.bytes - already + SPACE_MARGIN_BYTES;
+    if (free != null && free < needed) {
+      this._set({
+        status: 'error',
+        bytesWritten: already,
+        error: `This needs about ${formatGB(needed)} of free space and your phone has ${formatGB(free)}. `
+          + 'Free up some space, then try again.',
+      });
+      return;
+    }
+
+    this._set({ status: 'downloading', bytesWritten: already, error: null });
+
+    const onProgress = ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+      // Android already adds the resumed bytes; guard in case a platform counts only new ones.
+      const resumedCount = totalBytesExpectedToWrite > 0 && totalBytesExpectedToWrite < MODEL_DOWNLOAD.bytes - 1;
+      const written = resumedCount ? already + totalBytesWritten : totalBytesWritten;
+      const now = Date.now();
+      if (now - this._lastNotifiedAt < 500) return;
+      this._lastNotifiedAt = now;
+      this._set({ bytesWritten: Math.min(written, MODEL_DOWNLOAD.bytes) });
+    };
+
+    try {
+      // Android continues from resumeData = bytes already on disk (sent as a Range request).
+      this._resumable = FileSystem.createDownloadResumable(
+        MODEL_DOWNLOAD.url,
+        partPath(),
+        {},
+        onProgress,
+        already > 0 ? String(already) : undefined,
+      );
+      const result = already > 0 ? await this._resumable.resumeAsync() : await this._resumable.downloadAsync();
+      this._resumable = null;
+
+      if (this._pausing || !result) {
+        this._set({ status: 'paused', bytesWritten: await fileSize(partPath()) });
+        return;
+      }
+
+      const size = await fileSize(partPath());
+      if (size !== MODEL_DOWNLOAD.bytes) {
+        // A wrong size means the pieces don't line up; start again rather than load a broken file.
+        await FileSystem.deleteAsync(partPath(), { idempotent: true });
+        this._set({
+          status: 'error',
+          bytesWritten: 0,
+          error: "The download didn't finish properly. Please try again.",
+        });
+        return;
+      }
+
+      await FileSystem.deleteAsync(targetPath(), { idempotent: true });
+      await FileSystem.moveAsync({ from: partPath(), to: targetPath() });
+      this._set({ status: 'done', bytesWritten: MODEL_DOWNLOAD.bytes });
+    } catch (e) {
+      this._resumable = null;
+      if (this._pausing) {
+        this._set({ status: 'paused', bytesWritten: await fileSize(partPath()) });
+        return;
+      }
+      console.warn('[ModelSetup] Download stopped:', e.message);
+      this._set({
+        status: 'error',
+        bytesWritten: await fileSize(partPath()),
+        error: 'The download stopped. Check your internet connection, then tap Resume. '
+          + "You won't lose what's already downloaded.",
+      });
+    }
+  }
+
+  /** Pause; what's downloaded so far is kept. */
+  async pause() {
+    if (!this._resumable) return;
+    this._pausing = true;
+    try {
+      await this._resumable.pauseAsync();
+    } catch (e) {
+      console.warn('[ModelSetup] Pause failed:', e.message);
+    }
+  }
+
+  /** Stop and delete the unfinished download. */
+  async cancel() {
+    await this.pause();
+    await FileSystem.deleteAsync(partPath(), { idempotent: true });
+    this._set({ status: 'idle', bytesWritten: 0, error: null });
   }
 }
 
-/** Delete the model from documents directory (free space) */
-export async function deleteModel() {
-  const target = getModelTargetPath();
-  const info = await FileSystem.getInfoAsync(target);
-  if (info.exists) {
-    await FileSystem.deleteAsync(target);
-    console.log('[ModelSetup] Model deleted from:', target);
-  }
-}
+export const modelDownloader = new ModelDownloader();
 
-/** Get model info for debugging */
-export async function getModelInfo() {
-  const targetInfo = await isModelAvailable();
-  return {
-    filename: MODEL_FILENAME,
-    documentsDir: FileSystem.documentDirectory,
-    ...targetInfo,
-  };
+/** Delete the downloaded model to free space. The app falls back to standard explanations. */
+export async function deleteDownloadedModel() {
+  await modelDownloader.cancel();
+  await FileSystem.deleteAsync(targetPath(), { idempotent: true });
 }

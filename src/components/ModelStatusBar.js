@@ -9,11 +9,14 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useModel } from '../context/ModelContext';
+import ModelDownloadCard from './ModelDownloadCard';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
 export default function ModelStatusBar({ compact = false, onRetry }) {
-  const { modelStatus, modelError, isModelLoading, isModelReady, initializeModel } = useModel();
+  const {
+    modelStatus, modelError, isModelLoading, isModelReady, initializeModel, needsDownload,
+  } = useModel();
 
   const errorMessage = (() => {
     if (!modelError) return 'AI model unavailable — using rule-based analysis';
@@ -29,6 +32,9 @@ export default function ModelStatusBar({ compact = false, onRetry }) {
     }
     return 'AI model unavailable — using rule-based analysis';
   })();
+
+  // The model isn't on the phone yet: offer the download (full bar only).
+  if (needsDownload && modelStatus === 'idle') return compact ? null : <ModelDownloadCard />;
 
   // Don't show anything when idle (model not attempted yet)
   if (modelStatus === 'idle') return null;
