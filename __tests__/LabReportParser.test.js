@@ -13,7 +13,13 @@ describe('normalizeTestName', () => {
     ['Unconjugated Bilirubin', 'Indirect Bilirubin'],
     ['Conjugated Bilirubin', 'Direct Bilirubin'],
     ['TOTAL BILIRUBIN', 'Bilirubin'],
-    ['UREA', 'BUN'],
+    ['Bilirubin, Direct', 'Direct Bilirubin'],
+    ['BILIRUBIN (INDIRECT)', 'Indirect Bilirubin'],
+    ['Bilirubin - Conjugated', 'Direct Bilirubin'],
+    ['Bilirubin, Total', 'Bilirubin'],
+    ['UREA', 'Urea'],
+    ['Blood Urea Nitrogen', 'BUN'],
+    ['BUN', 'BUN'],
     ['SODIUM', 'Sodium'],
   ])('maps %s to %s', (input, expected) => {
     expect(normalizeTestName(input)).toBe(expected);
@@ -43,7 +49,7 @@ describe('extractWithRegex', () => {
 
     expect(results.Sodium.numeric_value).toBe(142.6);
     expect(results.Potassium.numeric_value).toBe(3.6);
-    expect(results.BUN.numeric_value).toBe(3.6);
+    expect(results.Urea.numeric_value).toBe(3.6);
     expect(results.Bilirubin.numeric_value).toBe(19.31);
     expect(results['Direct Bilirubin'].numeric_value).toBe(4.03);
     expect(results['Indirect Bilirubin'].numeric_value).toBe(15.3);

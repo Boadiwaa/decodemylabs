@@ -47,7 +47,7 @@ const { width } = Dimensions.get('window');
 const COMMON_TESTS = [
   'Cholesterol', 'HbA1c', 'Glucose', 'Creatinine', 'Hemoglobin',
   'WBC', 'RBC', 'Platelets', 'ALT', 'AST', 'ALP', 'GGT', 'TSH',
-  'Sodium', 'Potassium', 'Chloride', 'Calcium', 'Magnesium', 'BUN', 'Triglycerides',
+  'Sodium', 'Potassium', 'Chloride', 'Calcium', 'Magnesium', 'Urea', 'BUN', 'Triglycerides',
   'LDL', 'HDL', 'Blood Pressure', 'eGFR', 'Bilirubin',
   'Direct Bilirubin', 'Indirect Bilirubin',
   'Albumin', 'Globulin', 'Total Protein',

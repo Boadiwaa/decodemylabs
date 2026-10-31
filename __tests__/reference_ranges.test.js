@@ -1,4 +1,4 @@
-import { classifySeverity, deviationFromNormal, formatNormalRange, tidyRangeText, REFERENCE_RANGES } from '../src/domain/reference_ranges';
+import { classifySeverity, deviationFromNormal, formatNormalRange, tidyRangeText, tidyLegacyResult, REFERENCE_RANGES } from '../src/domain/reference_ranges';
 
 describe('classifySeverity', () => {
   it('classifies cholesterol in mg/dL at threshold boundaries', () => {
@@ -32,6 +32,18 @@ describe('classifySeverity', () => {
 
   it('classifies direct bilirubin above range as warn', () => {
     expect(classifySeverity('Direct Bilirubin', 4.03, 'umol/L')).toBe('warn');
+  });
+
+  it('keeps Urea and BUN as separate tests with their own units', () => {
+    expect(classifySeverity('Urea', 3.6, 'mmol/L')).toBe('safe');
+    expect(classifySeverity('Urea', 8.5, 'mmol/L')).toBe('warn');
+    expect(classifySeverity('BUN', 14, 'mg/dL')).toBe('safe');
+    expect(classifySeverity('BUN', 25, 'mg/dL')).toBe('warn');
+  });
+
+  it('renames results saved as BUN in mmol/L to Urea', () => {
+    expect(tidyLegacyResult({ test_name: 'BUN', unit: 'mmol/L' }).test_name).toBe('Urea');
+    expect(tidyLegacyResult({ test_name: 'BUN', unit: 'mg/dL' }).test_name).toBe('BUN');
   });
 
   it('returns safe for tests without a reference range', () => {

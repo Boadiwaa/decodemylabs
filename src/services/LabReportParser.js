@@ -65,9 +65,10 @@ const TEST_PATTERNS = [
   { pattern: /hba1c|hemoglobin\s*a1c|glycated\s*hemoglobin/i, name: 'HbA1c', unit: '%', range: '<5.7%' },
   { pattern: /blood\s*pressure|bp\b|systolic/i, name: 'Blood Pressure', unit: 'mmHg', range: '<120/80 mmHg' },
   // Bilirubin subtypes BEFORE generic bilirubin
-  // \b keeps "indirect"/"unconjugated" from matching the direct pattern.
-  { pattern: /\bdirect\s*bilirubin|\bconjugated\s*bilirubin/i, name: 'Direct Bilirubin', unit: 'umol/L', range: '0-3.4 umol/L' },
-  { pattern: /\bindirect\s*bilirubin|\bunconjugated\s*bilirubin/i, name: 'Indirect Bilirubin', unit: 'umol/L', range: '1.7-17.1 umol/L' },
+  // \b keeps "indirect"/"unconjugated" from matching the direct pattern. Both word orders:
+  // "Direct Bilirubin" and "Bilirubin, Direct" / "Bilirubin (Conjugated)" / "Bilirubin-D".
+  { pattern: /\b(?:direct|conjugated)\s*bilirubin|bilirubin[\s,:(\-]*(?:direct|conjugated|d)\b/i, name: 'Direct Bilirubin', unit: 'umol/L', range: '0-3.4 umol/L' },
+  { pattern: /\b(?:indirect|unconjugated)\s*bilirubin|bilirubin[\s,:(\-]*(?:indirect|unconjugated|i)\b/i, name: 'Indirect Bilirubin', unit: 'umol/L', range: '1.7-17.1 umol/L' },
   { pattern: /(?:total\s*)?bilirubin/i, name: 'Bilirubin', unit: 'umol/L', range: '0-21 umol/L' },
   // ALT before AST (SGPT before SGOT) — both have "transaminase"
   { pattern: /\balt\b|alanine\s*(?:amino)?transaminase|\bsgpt\b/i, name: 'ALT', unit: 'U/L', range: '0-35 U/L' },
@@ -80,7 +81,9 @@ const TEST_PATTERNS = [
   { pattern: /\bglobulin\b/i, name: 'Globulin', unit: 'g/L', range: '20-35 g/L' },
   // Kidney
   { pattern: /\bcreatinine\b/i, name: 'Creatinine', unit: 'umol/L', range: '45-84 umol/L' },
-  { pattern: /\burea\b|blood\s*urea\s*nitrogen|\bbun\b/i, name: 'BUN', unit: 'mmol/L', range: '2.8-7.2 mmol/L' },
+  // BUN before Urea ("blood urea nitrogen" contains "urea"); they are different tests.
+  { pattern: /blood\s*urea\s*nitrogen|\bbun\b/i, name: 'BUN', unit: 'mg/dL', range: '7-20 mg/dL' },
+  { pattern: /\burea\b/i, name: 'Urea', unit: 'mmol/L', range: '2.8-7.2 mmol/L' },
   { pattern: /\bsodium\b|\bna\s*\+/i, name: 'Sodium', unit: 'mmol/L', range: '136-146 mmol/L' },
   { pattern: /\bpotassium\b|\bk\s*\+/i, name: 'Potassium', unit: 'mmol/L', range: '3.5-5.1 mmol/L' },
   { pattern: /\bchloride\b|\bcl\b/i, name: 'Chloride', unit: 'mmol/L', range: '101-109 mmol/L' },

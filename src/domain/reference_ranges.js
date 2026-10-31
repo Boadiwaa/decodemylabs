@@ -77,15 +77,24 @@ export const REFERENCE_RANGES = {
     critical: { min: 115, max: Infinity },
     description: 'Serum Chloride',
   },
-  BUN: {
+  // Urea and BUN are different measurements (BUN counts only the urea's nitrogen),
+  // so each keeps the name printed on the report.
+  Urea: {
     unit: 'mmol/L',
     normal: { min: 2.8, max: 7.2 },
     elevated: { min: 7.2, max: 10.7 },
     critical: { min: 10.7, max: Infinity },
-    description: 'Blood Urea Nitrogen',
+    description: 'Serum Urea',
     altUnits: {
-      'mg/dL': { normal: { min: 7, max: 20 }, elevated: { min: 20, max: 30 }, critical: { min: 30, max: Infinity } },
+      'mg/dL': { normal: { min: 17, max: 43 }, elevated: { min: 43, max: 64 }, critical: { min: 64, max: Infinity } },
     },
+  },
+  BUN: {
+    unit: 'mg/dL',
+    normal: { min: 7, max: 20 },
+    elevated: { min: 20, max: 30 },
+    critical: { min: 30, max: Infinity },
+    description: 'Blood Urea Nitrogen',
   },
   // -- Liver panel --
   'Total Protein': {
@@ -319,7 +328,8 @@ const UNIT_CONVERSIONS = {
   Triglycerides: { 'mmol/l': 88.57 },
   Glucose: { 'mmol/l': 18.016 },
   Creatinine: { 'umol/l': 1 / 88.42 },
-  BUN: { 'mg/dl': 0.357 },
+  Urea: { 'mg/dl': 1 / 6.006 },
+  BUN: { 'mmol/l': 2.801 },
   Calcium: { 'mmol/l': 4.008 },
   Magnesium: { 'mmol/l': 2.431 },
   'Total Protein': { 'g/dl': G_DL_TO_G_L },
@@ -350,6 +360,17 @@ export function formatNormalRange(normal, unit) {
 export function tidyRangeText(text) {
   if (typeof text !== 'string') return text;
   return text.replace(/^\s*([\d.]+)\s*-\s*Infinity\b/, '$1 or higher');
+}
+
+/**
+ * Results saved before Urea and BUN were told apart were all named "BUN".
+ * Those in mmol/L were urea (BUN is reported in mg/dL), so give them back the report's name.
+ */
+export function tidyLegacyResult(result) {
+  if (result?.test_name === 'BUN' && normalizeUnit(result.unit) === 'mmol/l') {
+    return { ...result, test_name: 'Urea' };
+  }
+  return result;
 }
 
 /** Lower-case, ASCII-only form of a unit so spelling variants compare equal. */

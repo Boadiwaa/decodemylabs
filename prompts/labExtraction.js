@@ -25,7 +25,7 @@ Examples:
 Rules:
 - test_name: Use these standard names EXACTLY:
   Liver: "ALT", "AST", "ALP", "GGT", "Bilirubin", "Direct Bilirubin", "Indirect Bilirubin", "Albumin", "Globulin", "Total Protein"
-  Kidney: "Creatinine", "BUN", "Sodium", "Potassium", "Chloride", "Calcium", "eGFR"
+  Kidney: "Creatinine", "Urea", "BUN", "Sodium", "Potassium", "Chloride", "Calcium", "eGFR"
   Blood: "Hemoglobin", "WBC", "RBC", "Platelets"
   Metabolic: "Glucose", "HbA1c", "Cholesterol", "LDL", "HDL", "Triglycerides", "TSH"
 - result_value: ONLY the numeric value as a string (e.g. "42.5"). NO units here.
@@ -39,7 +39,7 @@ CRITICAL ALIASES:
 - "Alkaline Phosphatase" = "ALP"
 - "Gamma GT" or "Gamma-Glutamyl Transferase" = "GGT"
 - "Total Bilirubin" = "Bilirubin", "Direct Bilirubin" and "Indirect Bilirubin" are separate tests
-- "Urea" or "Blood Urea Nitrogen" = "BUN"
+- "Urea" = "Urea"; "Blood Urea Nitrogen" = "BUN". Urea and BUN are different tests: use the one the report shows
 
 Output ONLY JSON objects, one per line. No other text.`;
 
@@ -66,7 +66,7 @@ Examples:
 Rules:
 - test_name: Use these standard names EXACTLY:
   Liver: "ALT", "AST", "ALP", "GGT", "Bilirubin", "Direct Bilirubin", "Indirect Bilirubin", "Albumin", "Globulin", "Total Protein"
-  Kidney: "Creatinine", "BUN", "Sodium", "Potassium", "Chloride", "Calcium", "eGFR"
+  Kidney: "Creatinine", "Urea", "BUN", "Sodium", "Potassium", "Chloride", "Calcium", "eGFR"
   Blood: "Hemoglobin", "WBC", "RBC", "Platelets"
   Metabolic: "Glucose", "HbA1c", "Cholesterol", "LDL", "HDL", "Triglycerides", "TSH"
 - result_value: ONLY the numeric value as a string (e.g. "42.5"). NO units here.
@@ -77,6 +77,6 @@ Rules:
 CRITICAL ALIASES:
 - SGPT = ALT, SGOT = AST, Alkaline Phosphatase = ALP, Gamma GT = GGT
 - Total Bilirubin = "Bilirubin", Direct/Indirect Bilirubin are separate entries
-- Urea = BUN
+- Urea = "Urea", Blood Urea Nitrogen = "BUN" (different tests: use the one the report shows)
 
 Output ONLY JSON objects, one per line. No other text.`;

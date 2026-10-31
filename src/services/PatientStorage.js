@@ -16,7 +16,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { convertUnit } from '../domain/reference_ranges';
+import { convertUnit, tidyLegacyResult } from '../domain/reference_ranges';
 import { formatDate, formatShortDate } from '../utils/dates';
 
 const KEYS = {
@@ -153,7 +153,7 @@ export async function saveLabResults(userId, results) {
 
 export async function getLabResults(userId) {
   const data = await _get(KEYS.labResults(userId));
-  return data?.results || [];
+  return (data?.results || []).map(tidyLegacyResult);
 }
 
 /**
