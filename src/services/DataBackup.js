@@ -13,28 +13,13 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { readBackupData, writeBackupData } from './PatientStorage';
 import { formatDate, toISODate } from '../utils/dates';
+import { prepareShareFile } from '../utils/shareFiles';
 
 export const BACKUP_FORMAT = 'talkinglabs-backup';
 export const BACKUP_VERSION = 1;
 
 const REPORTS_DIR = () => `${FileSystem.documentDirectory}lab_reports/`;
 const BACKUP_PREFIX = 'TalkingLabs-backup-';
-
-/**
- * Remove earlier backup files from the app's private cache. They are kept
- * until the next export because the app receiving a share (e.g. an email
- * draft) may read the file after the share sheet closes.
- */
-async function removeOldBackupFiles() {
-  try {
-    const names = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory);
-    await Promise.all(names
-      .filter((name) => name.startsWith(BACKUP_PREFIX))
-      .map((name) => FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${name}`, { idempotent: true })));
-  } catch (e) {
-    console.warn('[DataBackup] Could not clear old backups:', e.message);
-  }
-}
 
 /**
  * Check that parsed JSON is a TalkingLabs backup this version can restore.
@@ -95,8 +80,8 @@ export async function exportBackup(userId) {
     files,
   };
 
-  await removeOldBackupFiles();
-  const fileUri = `${FileSystem.cacheDirectory}${BACKUP_PREFIX}${toISODate()}.json`;
+  // Kept until the next export: the receiving app may read it after the share sheet closes.
+  const fileUri = await prepareShareFile(BACKUP_PREFIX, `${BACKUP_PREFIX}${toISODate()}.json`);
   await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(backup));
 
   if (!(await Sharing.isAvailableAsync())) {
