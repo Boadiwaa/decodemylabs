@@ -11,7 +11,7 @@
  * Reports are stored strictly on-device.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform,
   StyleSheet, Alert, Dimensions, TextInput, ActivityIndicator,
@@ -37,7 +37,9 @@ import {
 } from '../services/LabReportParser';
 import { classifySeverity, formatNormalRange, REFERENCE_RANGES } from '../domain/reference_ranges';
 import { sortByLabGroup } from '../domain/lab_groups';
+import { findRepeatedTests } from '../domain/report_checks';
 import { formatDate, parseISODate, toISODate } from '../utils/dates';
+import RepeatedValuesNotice from '../components/RepeatedValuesNotice';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -83,6 +85,10 @@ export default function LabUploadScreen({ navigation }) {
   const [manualDate, setManualDate] = useState(toISODate());
   const [showTestPicker, setShowTestPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Tests this report gave two different values for: both are kept and flagged.
+  const repeatedTests = useMemo(() => findRepeatedTests(parsedResults || []), [parsedResults]);
+  const repeatedIds = useMemo(() => new Set(repeatedTests.flatMap((t) => t.ids)), [repeatedTests]);
 
   useEffect(() => {
     loadReports();
@@ -542,6 +548,8 @@ export default function LabUploadScreen({ navigation }) {
                   </Animated.View>
                 )}
 
+                <RepeatedValuesNotice items={repeatedTests} />
+
                 <Text style={styles.extractedTitle}>
                   ✅ Extracted Lab Values ({parsedResults.length})
                 </Text>
@@ -555,6 +563,9 @@ export default function LabUploadScreen({ navigation }) {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.resultTestName}>{r.test_name}</Text>
                       <Text style={styles.resultRange}>Normal: {r.normal_range}</Text>
+                      {repeatedIds.has(r.id) && (
+                        <Text style={styles.repeatedTag}>Two values on this report: check with the lab</Text>
+                      )}
                     </View>
                     <Text style={[styles.resultValue, { color: sevColor(r.severity) }]}>
                       {r.result_value}
@@ -891,6 +902,7 @@ const styles = StyleSheet.create({
   sevDot: { width: 10, height: 10, borderRadius: 5 },
   resultTestName: { ...Typography.bodySmall, fontWeight: '600', color: Colors.navy },
   resultRange: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
+  repeatedTag: { ...Typography.caption, color: Colors.warn, fontWeight: '600', marginTop: 2 },
   resultValue: { ...Typography.body, fontWeight: '700', fontSize: 16 },
   deleteResultBtn: { padding: 4, marginLeft: 4 },
 

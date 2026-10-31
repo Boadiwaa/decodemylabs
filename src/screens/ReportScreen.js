@@ -9,7 +9,9 @@ import { useUserLabData } from '../hooks/useUserLabData';
 import { getSeverityConfig, getTrendChange, formatDate } from '../utils/helpers';
 import { groupByLabGroup } from '../domain/lab_groups';
 import { buildMonitoringList, buildSummaryBullets } from '../domain/monitoring';
+import { findRepeatedTests } from '../domain/report_checks';
 import { getDrugHistory, getMedicalHistory } from '../services/PatientStorage';
+import RepeatedValuesNotice from '../components/RepeatedValuesNotice';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -41,6 +43,7 @@ export default function ReportScreen({ route, navigation }) {
     getTrends,
     getReportSessionData,
     reportSessions,
+    allResults,
   } = useUserLabData();
 
   const effectivePatientId = currentPatientId || patientId;
@@ -54,6 +57,11 @@ export default function ReportScreen({ route, navigation }) {
   const trends = reportData?.trends || getTrends(effectivePatientId) || [];
 
   const reportSession = reportId ? reportSessions.find((s) => s.reportId === reportId) : null;
+  // One report giving two values for a test: this report's, or any report behind the latest results.
+  const repeatedTests = useMemo(() => {
+    const shownReports = new Set(reportId ? [reportId] : labResults.map((l) => l.source_report_id));
+    return findRepeatedTests(allResults || []).filter((t) => shownReports.has(t.reportId));
+  }, [allResults, labResults, reportId]);
 
   const summary = useMemo(() => {
     const counts = labResults.reduce((acc, result, idx) => {
@@ -128,6 +136,8 @@ export default function ReportScreen({ route, navigation }) {
             <Text style={[styles.overallBadgeText, { color: summarySeverity.color }]}>Overall: {summarySeverity.label}</Text>
           </View>
         </Animated.View>
+
+        <RepeatedValuesNotice items={repeatedTests} style={styles.repeatedNotice} />
 
         <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.summaryRow}>
           <View style={styles.statCard}>
@@ -312,6 +322,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   overallBadgeText: { ...Typography.pill },
+  repeatedNotice: { marginTop: 12, marginBottom: 0 },
   summaryRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   statCard: {
     flex: 1,

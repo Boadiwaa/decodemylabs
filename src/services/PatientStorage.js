@@ -167,14 +167,11 @@ export async function appendLabResults(userId, newResults) {
   const resultMap = new Map(existing.map((r) => [r.id, r]));
 
   for (const newResult of newResults) {
-    // Check if a result with the same test_name already exists from the same report
-    const duplicate = existing.find(
-      (r) => r.test_name === newResult.test_name && r.source_report_id === newResult.source_report_id && r.id !== newResult.id
-    );
-    if (duplicate) {
-      // Remove the old one — manual entry replaces extracted value
-      resultMap.delete(duplicate.id);
-    }
+    // Results already saved for the same test from the same report are replaced
+    // (a typed correction replaces every value read for it, including repeats).
+    existing
+      .filter((r) => r.test_name === newResult.test_name && r.source_report_id === newResult.source_report_id && r.id !== newResult.id)
+      .forEach((r) => resultMap.delete(r.id));
     resultMap.set(newResult.id, newResult);
   }
 
