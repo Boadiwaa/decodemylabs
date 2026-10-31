@@ -16,11 +16,15 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { LITERT_MODEL_FILENAME } from '../constants/inference';
 
 const MODEL_REPO = 'litert-community/gemma-4-E2B-it-litert-lm';
-const MODEL_REVISION = '1caa527c1e88b55f046fcd8d2b4265606680663d';
+// The 1 April 2026 upload: the file tested on device (sha256 ab7838cd…27e42).
+// Uploads from May 2026 on add a multi-size vision encoder that litertlm-android
+// 0.10.2 refuses ("Vision Encoder model must have exactly one signature but got 3").
+// Only move this forward together with a LiteRT upgrade, and test on a phone.
+const MODEL_REVISION = '7fa1d78473894f7e736a21d920c3aa80f950c0db';
 
 export const MODEL_DOWNLOAD = {
   url: `https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REVISION}/gemma-4-E2B-it.litertlm`,
-  bytes: 2588147712,
+  bytes: 2583085056,
 };
 
 // Leave room on the phone after the download so other apps keep working.
@@ -175,8 +179,20 @@ class ModelDownloader {
 
 export const modelDownloader = new ModelDownloader();
 
-/** Delete the downloaded model to free space. The app falls back to standard explanations. */
+/**
+ * Delete the downloaded model to free space. The app falls back to standard explanations.
+ * LiteRT also writes cache files next to the model (about 1 GB); they belong to
+ * this model file, so they go too.
+ */
 export async function deleteDownloadedModel() {
   await modelDownloader.cancel();
   await FileSystem.deleteAsync(targetPath(), { idempotent: true });
+  try {
+    const names = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory);
+    await Promise.all(names
+      .filter((name) => name.startsWith(LITERT_MODEL_FILENAME) && name.includes('xnnpack_cache'))
+      .map((name) => FileSystem.deleteAsync(`${FileSystem.documentDirectory}${name}`, { idempotent: true })));
+  } catch (e) {
+    console.warn('[ModelSetup] Could not clear model cache files:', e.message);
+  }
 }

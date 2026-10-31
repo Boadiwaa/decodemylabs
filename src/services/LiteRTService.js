@@ -282,7 +282,8 @@ class LiteRTService {
         await initFn.call(this._nativeModule, rawPath);
       } catch (secondError) {
         await this.clearCrashMarker();
-        const details = secondError?.message || firstError?.message || 'unknown initialization error';
+        // The first call is the real attempt; the plain-string retry usually fails only on its argument type.
+        const details = firstError?.message || secondError?.message || 'unknown initialization error';
         throw new Error(`LiteRT initialization failed: ${details}`);
       }
     }

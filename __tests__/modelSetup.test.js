@@ -7,6 +7,7 @@ jest.mock('expo-file-system/legacy', () => ({
   getInfoAsync: jest.fn(async (uri) => (uri in mockFiles
     ? { exists: true, size: mockFiles[uri] } : { exists: false })),
   getFreeDiskStorageAsync: jest.fn(async () => mockFree),
+  readDirectoryAsync: jest.fn(async () => Object.keys(mockFiles).map((uri) => uri.replace('file:///docs/', ''))),
   deleteAsync: jest.fn(async (uri) => { delete mockFiles[uri]; }),
   moveAsync: jest.fn(async ({ from, to }) => { mockFiles[to] = mockFiles[from]; delete mockFiles[from]; }),
   createDownloadResumable: jest.fn((url, fileUri, options, onProgress, resumeData) => {
@@ -16,7 +17,7 @@ jest.mock('expo-file-system/legacy', () => ({
 }));
 
 import * as FileSystem from 'expo-file-system/legacy';
-import { modelDownloader, MODEL_DOWNLOAD, formatGB } from '../src/services/ModelSetup';
+import { deleteDownloadedModel, modelDownloader, MODEL_DOWNLOAD, formatGB } from '../src/services/ModelSetup';
 
 const PART = 'file:///docs/gemma-4-E2B-it.litertlm.part';
 const MODEL = 'file:///docs/gemma-4-E2B-it.litertlm';
@@ -70,6 +71,15 @@ describe('model download', () => {
     expect(modelDownloader.state.status).toBe('error');
     expect(modelDownloader.state.error).toMatch(/free space/);
     expect(FileSystem.createDownloadResumable).not.toHaveBeenCalled();
+  });
+
+  it('removing the model also removes its cache files', async () => {
+    mockFiles[MODEL] = MODEL_DOWNLOAD.bytes;
+    mockFiles[`${MODEL}.xnnpack_cache_1_2`] = 788412736;
+    mockFiles[`${MODEL}.vision_encoder.xnnpack_cache`] = 217562184;
+    mockFiles['file:///docs/other.txt'] = 10;
+    await deleteDownloadedModel();
+    expect(Object.keys(mockFiles)).toEqual(['file:///docs/other.txt']);
   });
 
   it('formats sizes for patients', () => {
