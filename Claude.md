@@ -58,6 +58,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - interpretation_rules.js - Trend and urgency helpers
 - lab_groups.js - Body-system groups with patient-friendly titles; use for ordering result lists
 - monitoring.js - What to monitor closely or keep tracking, with reasons; bulleted summaries (deterministic)
+- report_checks.js - Flags a report that gave two different values for one test (both kept; patient asked to check with the lab)
 
 ### AI Agents
 - types.js - Agent output interface and validation helpers
@@ -70,11 +71,13 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - LiteRTService.js - Android LiteRT-LM adapter (Gemma 4) with a crash-loop guard
 - PatientStorage.js - Persistent storage API (health data, app settings, backup read/write)
 - DataBackup.js - Export a backup file via the share sheet and restore one (not encrypted)
+- DataDeletion.js - "Delete my data": report photos, stored health data, shared files and temporary copies (the account is removed by AuthContext)
 - AppLock.js - Biometric / phone PIN check via expo-local-authentication
 - AkanTTSService.js - Akan TTS support
 - ModelSetup.js - One-time Gemma LiteRT model download on Android (pinned Hugging Face revision, resumable, size-checked)
 - Feedback.js - Builds the feedback message and opens the email app or share sheet
-- ClinicianSummary.js - Clinician summary: data, PDF (expo-print) with evidence trail, and QR text
+- ClinicianSummary.js - Clinician summary: data, PDF (expo-print) with trend charts and evidence trail, and QR text
+- ClinicianSummaryCharts.js - SVG trend charts for the PDF (straight lines between real values, normal range shaded)
 
 ### Screens
 - DashboardScreen.js - Main dashboard entry
@@ -99,6 +102,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - ModelDownloadCard.js - Offers the Gemma download and shows its progress
 - ExplanationFeedback.js - "Was this explanation helpful?" thumbs, saved on-device
 - QrCode.js - On-device QR code (qrcode-generator + react-native-svg)
+- RepeatedValuesNotice.js - Notice when one report gave two values for the same test
 
 ### Native Modules
 - modules/expo-ocr - On-device OCR (Apple Vision / ML Kit)
@@ -132,7 +136,8 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 ### Tone and Language
 - Keep language warm, reassuring, and easy to understand.
 - Avoid alarmist wording.
-- End patient-facing recommendations with this exact phrase: Consult a licensed healthcare provider.
+- End patient-facing recommendations with this exact phrase: Consult a licensed healthcare provider. French text ends with "Consultez un professionnel de santé agréé." instead (never both); use withSafetyPhrase in constants/safety.js.
+- Keep the test name the report uses where it is a different measurement (e.g. Urea and BUN are separate tests).
 - Support EN, FR, and AK when generating multilingual explanations.
 
 ### AI and Safety Rules
