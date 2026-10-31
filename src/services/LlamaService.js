@@ -22,6 +22,7 @@ import {
   LOCAL_INFERENCE_RUNTIME,
 } from '../constants/inference';
 import liteRTService from './LiteRTService';
+import { checkRamForModel } from './ModelSetup';
 
 /**
  * Pre-flight check: is the llama.rn native module available?
@@ -939,6 +940,10 @@ class LlamaService {
     } catch (e) {
       return { ok: false, reason: e.message };
     }
+    // The guardrails skip RAM for LiteRT (it memory-maps the model), but low-memory
+    // phones still struggle, so they aren't offered the download.
+    const ram = checkRamForModel(Device.totalMemory);
+    if (!ram.ok) return ram;
     liteRTService.refreshNativeBinding();
     if (!liteRTService.isNativeAvailable) {
       return { ok: false, reason: 'This version of the app does not include the AI runtime.' };

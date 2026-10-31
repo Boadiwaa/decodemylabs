@@ -17,7 +17,9 @@ jest.mock('expo-file-system/legacy', () => ({
 }));
 
 import * as FileSystem from 'expo-file-system/legacy';
-import { deleteDownloadedModel, modelDownloader, MODEL_DOWNLOAD, formatGB } from '../src/services/ModelSetup';
+import {
+  checkRamForModel, deleteDownloadedModel, modelDownloader, MODEL_DOWNLOAD, formatGB,
+} from '../src/services/ModelSetup';
 
 const PART = 'file:///docs/gemma-4-E2B-it.litertlm.part';
 const MODEL = 'file:///docs/gemma-4-E2B-it.litertlm';
@@ -73,6 +75,22 @@ describe('model download', () => {
     expect(FileSystem.createDownloadResumable).not.toHaveBeenCalled();
   });
 
+  it('needs room for the cache files too, not just the model', async () => {
+    mockFree = 3.3e9; // enough for the model and margin, not for the ~1 GB of caches
+    await modelDownloader.start();
+    expect(modelDownloader.state.status).toBe('error');
+    expect(modelDownloader.state.error).toMatch(/about 4\.\d GB of free space and your phone has 3\.3 GB/);
+    expect(FileSystem.createDownloadResumable).not.toHaveBeenCalled();
+  });
+
+  it('counts what is already downloaded when checking space', async () => {
+    mockFiles[PART] = 2e9;
+    mockFree = 2.3e9;
+    mockDownload = async ({ fileUri }) => { mockFiles[fileUri] = MODEL_DOWNLOAD.bytes; return { uri: fileUri, status: 206 }; };
+    await modelDownloader.start();
+    expect(modelDownloader.state.status).toBe('done');
+  });
+
   it('removing the model also removes its cache files', async () => {
     mockFiles[MODEL] = MODEL_DOWNLOAD.bytes;
     mockFiles[`${MODEL}.xnnpack_cache_1_2`] = 788412736;
@@ -81,6 +99,15 @@ describe('model download', () => {
     mockFiles['file:///docs/other.txt'] = 10;
     await deleteDownloadedModel();
     expect(Object.keys(mockFiles)).toEqual(['file:///docs/other.txt']);
+  });
+
+  it('offers the model only to phones sold with 6 GB of memory or more', () => {
+    const GiB = 1024 ** 3;
+    expect(checkRamForModel(3.6 * GiB).ok).toBe(false); // "4 GB" phone
+    expect(checkRamForModel(3.6 * GiB).reason).toMatch(/6 GB or more/);
+    expect(checkRamForModel(5.3 * GiB).ok).toBe(true); // "6 GB" phone
+    expect(checkRamForModel(7.4 * GiB).ok).toBe(true); // "8 GB" phone
+    expect(checkRamForModel(0).ok).toBe(true); // unknown: don't block
   });
 
   it('formats sizes for patients', () => {

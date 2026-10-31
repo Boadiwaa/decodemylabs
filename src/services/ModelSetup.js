@@ -27,8 +27,34 @@ export const MODEL_DOWNLOAD = {
   bytes: 2583085056,
 };
 
+// LiteRT writes cache files next to the model on its first load (~1.0 GB measured).
+const CACHE_BYTES = 1.1e9;
+
 // Leave room on the phone after the download so other apps keep working.
 const SPACE_MARGIN_BYTES = 500 * 1024 * 1024;
+
+/**
+ * Gemma needs about 1.5 GB of memory on top of Android and the app, so only phones
+ * sold with 6 GB or more get the download. Android reports less than the advertised
+ * size (a "6 GB" phone shows ~5.2–5.6 GiB, a "4 GB" phone ~3.6 GiB), hence 5 GiB.
+ */
+export const MIN_MODEL_RAM_BYTES = 5 * 1024 * 1024 * 1024;
+
+/**
+ * Whether the phone has enough memory for the downloadable model.
+ * @param {number} totalMemory - Device.totalMemory in bytes (0 or missing when unknown)
+ * @returns {{ ok: boolean, reason?: string }}
+ */
+export function checkRamForModel(totalMemory) {
+  const bytes = Number(totalMemory || 0);
+  if (bytes > 0 && bytes < MIN_MODEL_RAM_BYTES) {
+    return {
+      ok: false,
+      reason: `This phone has ${formatGB(bytes)} of memory; Gemma needs a phone with 6 GB or more.`,
+    };
+  }
+  return { ok: true };
+}
 
 const targetPath = () => `${FileSystem.documentDirectory}${LITERT_MODEL_FILENAME}`;
 const partPath = () => `${targetPath()}.part`;
@@ -87,7 +113,8 @@ class ModelDownloader {
 
     const already = await fileSize(partPath());
     const free = await FileSystem.getFreeDiskStorageAsync().catch(() => null);
-    const needed = MODEL_DOWNLOAD.bytes - already + SPACE_MARGIN_BYTES;
+    // Room for the rest of the model, its first-load cache files, and a margin.
+    const needed = MODEL_DOWNLOAD.bytes - already + CACHE_BYTES + SPACE_MARGIN_BYTES;
     if (free != null && free < needed) {
       this._set({
         status: 'error',
