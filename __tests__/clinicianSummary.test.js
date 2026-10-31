@@ -65,7 +65,8 @@ describe('buildClinicianSummary', () => {
       { ...input.labResults[0], result_value: '15.3 mg/dL' },
     ];
     const [glucose, alt] = buildClinicianSummary(input).evidence;
-    expect(glucose.note).toBe('This report gave 2 values for this test (140 mg/dL, 15.3 mg/dL); check the original.');
+    expect(glucose.note).toBe('This report gave 2 values for this test (140 mg/dL, 15.3 mg/dL). Both were kept; '
+      + 'the patient was asked to check with the lab. Please check the original report.');
     expect(alt.note).not.toMatch(/gave 2 values/);
   });
 
@@ -86,12 +87,13 @@ describe('renderSummaryHtml', () => {
     const html = renderSummaryHtml(buildClinicianSummary(base()));
     expect(html).toContain('Ama &lt;b&gt;Mensah&lt;/b&gt;');
     expect(html).not.toContain('<b>Mensah</b>');
-    for (const heading of ['Summary', 'Monitor closely', 'Keep tracking', 'All latest results', 'Health background (from the patient)', 'Evidence trail']) {
+    for (const heading of ['Summary', 'Monitor closely', 'Trends to watch', 'Keep tracking', 'All latest results', 'Health background (from the patient)', 'Evidence trail']) {
       expect(html).toContain(`${heading}</h2>`);
     }
     expect(html).toContain('Metformin 500 mg twice daily');
     expect(html).toContain('Born 15/06/1985');
     expect(html).toContain('<polyline');
+    expect(html).toContain('class="trend"'); // full chart for each result to monitor closely
     expect(html).toContain('Consult a licensed healthcare provider.');
   });
 });

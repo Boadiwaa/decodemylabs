@@ -13,9 +13,11 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { buildMonitoringList, buildSummaryBullets } from '../domain/monitoring';
 import { groupByLabGroup } from '../domain/lab_groups';
+import { findRepeatedTests } from '../domain/report_checks';
 import { formatDate, toISODate } from '../utils/dates';
 import { APP_VERSION } from './Feedback';
 import { prepareShareFile } from '../utils/shareFiles';
+import { trendChartSvg } from './ClinicianSummaryCharts';
 
 export const DISCLAIMER = 'This summary was prepared by the patient with TalkingLabs. Values were read from photos '
   + 'of their own lab reports on their phone and may contain reading errors: check them against the original reports. '
@@ -71,6 +73,7 @@ export function buildClinicianSummary({
   const allDates = [...dates, ...trendDates].sort();
   const reportById = new Map(reports.map((r) => [r.id, r]));
   const usedReportIds = new Set(labResults.map((l) => l.source_report_id).filter(Boolean));
+  const repeated = findRepeatedTests(allResults);
 
   return {
     generatedAt: now.toISOString(),
@@ -93,11 +96,10 @@ export function buildClinicianSummary({
     evidence: labResults.map((lab) => {
       const report = reportById.get(lab.source_report_id);
       const p = lab.provenance;
-      const sameReport = lab.source_report_id && lab.source_report_id !== 'manual'
-        ? allResults.filter((r) => r.test_name === lab.test_name && r.source_report_id === lab.source_report_id)
-        : [];
-      const conflict = sameReport.length > 1
-        ? `This report gave ${sameReport.length} values for this test (${sameReport.map((r) => r.result_value).join(', ')}); check the original.`
+      const twice = repeated.find((t) => t.testName === lab.test_name && t.reportId === lab.source_report_id);
+      const conflict = twice
+        ? `This report gave ${twice.values.length} values for this test (${twice.values.join(', ')}). Both were kept; `
+          + 'the patient was asked to check with the lab. Please check the original report.'
         : '';
       const corrected = p?.replaced
         ? `Corrected by the patient; first read as ${p.replaced.value}${p.replaced.read_by ? ` (${READ_BY[p.replaced.read_by] || p.replaced.read_by})` : ''}`
@@ -116,6 +118,7 @@ export function buildClinicianSummary({
       };
     }),
     reportsUsed: [...usedReportIds].map((id) => reportById.get(id)).filter(Boolean),
+    repeated,
   };
 }
 
@@ -203,6 +206,31 @@ function monitoringTable(items) {
   }</tbody></table>`;
 }
 
+/** One chart card per result to monitor closely: the trend as the app draws it. */
+function trendCharts(items, repeated = []) {
+  return `<div class="charts">${items.map((i) => {
+    const trend = i.trendRef;
+    const values = trend?.values || [];
+    const change = i.change
+      ? `${i.change.pct > 0 ? '↑' : i.change.pct < 0 ? '↓' : '→'} ${Math.abs(i.change.pct)}% since ${formatDate(i.change.from.isoDate)}`
+      : values.length > 1 ? `${values.length} results` : 'One result so far';
+    const notes = [
+      repeated.some((t) => t.testName === i.lab.test_name)
+        ? 'One report gave two values for this test; both are plotted.' : null,
+      trend?.convertedCount ? `Earlier results converted to ${trend.unit} to compare.` : null,
+    ].filter(Boolean);
+    return `<div class="chart">
+      <div class="chart-head">
+        <b>${esc(i.lab.test_name)}</b>
+        <span style="color:${STATUS[i.severity].color}"><b>${esc(i.lab.result_value)}</b> · ${STATUS[i.severity].label}</span>
+      </div>
+      <div class="muted">Normal: ${esc(i.lab.normal_range)} · <span style="color:${i.change?.worsening ? STATUS.danger.color : '#5E7877'}">${esc(change)}</span></div>
+      ${trendChartSvg(trend || { unit: i.lab.unit, values: [{ value: Number(i.lab.numeric_value), isoDate: i.lab.date }] }, i.lab, i.severity)}
+      ${notes.map((t) => `<div class="muted">${esc(t)}</div>`).join('')}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 /** The PDF as HTML (A4, printed by expo-print). */
 export function renderSummaryHtml(summary) {
   const { patient } = summary;
@@ -235,6 +263,10 @@ export function renderSummaryHtml(summary) {
   .closely h2 { background: #FBEDEE; color: #7A2E35; }
   .summary li { font-size: 10.5pt; }
   .evidence td { font-size: 8.5pt; }
+  .charts { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chart { width: calc(50% - 5px); border: 1px solid #DCEDED; border-radius: 8px; padding: 8px 10px 6px; page-break-inside: avoid; break-inside: avoid; }
+  .chart-head { display: flex; justify-content: space-between; gap: 8px; font-size: 10pt; }
+  .chart svg.trend { display: block; margin-top: 4px; }
   .footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #CDEEEE; color: #4F6B6A; font-size: 8.5pt; }
   </style></head><body>
   <h1>Lab results summary</h1>
@@ -247,6 +279,9 @@ export function renderSummaryHtml(summary) {
   <ul class="summary">${summary.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
 
   ${summary.monitoring.closely.length ? `<div class="closely"><h2>Monitor closely</h2>${monitoringTable(withTrend(summary.monitoring.closely))}</div>` : ''}
+  ${summary.monitoring.closely.length ? `<h2>Trends to watch</h2>
+  <p class="muted">Results to monitor closely, as charted in the app. The shaded band is the normal range.</p>
+  ${trendCharts(withTrend(summary.monitoring.closely), summary.repeated)}` : ''}
   ${summary.monitoring.tracking.length ? `<h2>Keep tracking</h2>${monitoringTable(withTrend(summary.monitoring.tracking))}` : ''}
 
   <h2>All latest results</h2>
