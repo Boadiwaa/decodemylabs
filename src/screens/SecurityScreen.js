@@ -14,6 +14,7 @@ import {
 } from '../services/PatientStorage';
 import { authenticate, getLockAvailability } from '../services/AppLock';
 import { exportBackup, pickBackup, restoreBackup } from '../services/DataBackup';
+import { deleteMyData } from '../services/DataDeletion';
 import { APP_VERSION } from '../services/Feedback';
 import llamaService from '../services/LlamaService';
 import { formatGB, MODEL_DOWNLOAD } from '../services/ModelSetup';
@@ -29,7 +30,7 @@ function savedSummary(items, singular, plural) {
 }
 
 export default function SecurityScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const { modelStatus, needsDownload, removeModel } = useModel();
   const insets = useSafeAreaInsets();
   const deviceSupport = llamaService.checkDeviceCanRunLiteRT();
@@ -140,6 +141,52 @@ export default function SecurityScreen({ navigation }) {
     );
   }, [user?.id]);
 
+  const runDelete = useCallback(async () => {
+    setBusy('delete');
+    try {
+      const { ok } = await deleteMyData(user.id);
+      if (!ok) {
+        Alert.alert('Delete my data', "We couldn't delete everything. Please try again.");
+        return;
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Delete my data', 'Your data has been deleted from this phone.');
+      await deleteAccount();
+    } catch (e) {
+      console.warn('[Settings] Delete failed:', e);
+      Alert.alert('Delete my data', "We couldn't delete everything. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }, [user?.id, deleteAccount]);
+
+  const handleDelete = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Delete all your data?',
+      'This removes from this phone: your account, report photos, results, conditions, medicines, saved '
+        + 'explanations, and any summary or backup file waiting to be shared.\n\n'
+        + "Backups you saved elsewhere (for example in Google Drive) aren't affected. "
+        + 'The Gemma AI download stays; it holds no personal data.\n\nThis cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Save a backup first', onPress: handleExport },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => Alert.alert(
+            'Are you sure?',
+            'Everything will be deleted and you will be signed out.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete everything', style: 'destructive', onPress: runDelete },
+            ],
+          ),
+        },
+      ],
+    );
+  }, [handleExport, runDelete]);
+
   const handleRemoveModel = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
@@ -162,6 +209,10 @@ export default function SecurityScreen({ navigation }) {
   const dataItems = [
     { id: 'export', label: 'Save a backup', detail: 'Reports, results, conditions and medicines', icon: 'download', onPress: handleExport },
     { id: 'import', label: 'Restore from a backup', detail: 'Replaces the data in the app', icon: 'cloud-upload', onPress: handleImport },
+    {
+      id: 'delete', label: 'Delete my data', detail: 'Your account, photos and results on this phone',
+      icon: 'trash-outline', onPress: handleDelete, danger: true,
+    },
   ];
 
   const healthItems = [
@@ -181,7 +232,7 @@ export default function SecurityScreen({ navigation }) {
     },
   ];
   const [appLock, setAppLock] = useState(false);
-  const [busy, setBusy] = useState(null); // 'export' | 'import' | null
+  const [busy, setBusy] = useState(null); // 'export' | 'import' | 'delete' | null
   return (
     <View style={styles.screen}>
       {/* Header */}
@@ -239,11 +290,11 @@ export default function SecurityScreen({ navigation }) {
                 accessibilityRole="button"
                 accessibilityLabel={`Edit ${item.label.toLowerCase()}. ${item.detail}`}
               >
-                <View style={[styles.settingIcon, { backgroundColor: Colors.tealLight }]}>
-                  <Ionicons name={item.icon} size={18} color={Colors.tealDark} />
+                <View style={[styles.settingIcon, { backgroundColor: item.danger ? Colors.dangerBg : Colors.tealLight }]}>
+                  <Ionicons name={item.icon} size={18} color={item.danger ? Colors.danger : Colors.tealDark} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.settingLabel}>{item.label}</Text>
+                  <Text style={[styles.settingLabel, item.danger && { color: Colors.danger }]}>{item.label}</Text>
                   <Text style={styles.settingDetail} numberOfLines={1}>{item.detail}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
@@ -292,11 +343,11 @@ export default function SecurityScreen({ navigation }) {
                 accessibilityRole="button"
                 accessibilityLabel={`${item.label}. ${item.detail}`}
               >
-                <View style={[styles.settingIcon, { backgroundColor: Colors.tealLight }]}>
-                  <Ionicons name={item.icon} size={18} color={Colors.tealDark} />
+                <View style={[styles.settingIcon, { backgroundColor: item.danger ? Colors.dangerBg : Colors.tealLight }]}>
+                  <Ionicons name={item.icon} size={18} color={item.danger ? Colors.danger : Colors.tealDark} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.settingLabel}>{item.label}</Text>
+                  <Text style={[styles.settingLabel, item.danger && { color: Colors.danger }]}>{item.label}</Text>
                   <Text style={styles.settingDetail}>{item.detail}</Text>
                 </View>
                 {busy === item.id

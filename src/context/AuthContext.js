@@ -174,6 +174,19 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  /**
+   * Remove the current account from this phone and sign out. Health data is
+   * deleted separately (DataDeletion.deleteMyData) before this is called.
+   */
+  const deleteAccount = useCallback(async () => {
+    if (!user) return;
+    const raw = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+    const users = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users.filter((u) => u.id !== user.id)));
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    setUser(null);
+  }, [user]);
+
   const isAuthenticated = !!user;
   const isPatientUser = true;
   const currentPatientId = user?.patientId || null;
@@ -229,6 +242,7 @@ export function AuthProvider({ children }) {
       register,
       login,
       logout,
+      deleteAccount,
       completeOnboarding,
       updateUser,
     }}>
