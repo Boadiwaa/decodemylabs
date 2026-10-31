@@ -4,6 +4,7 @@
  */
 
 import { REFERENCE_RANGES } from './reference_ranges';
+import { SAFETY_PHRASE_FR } from '../constants/safety';
 
 const DIRECTION = {
   LOW: 'low',
@@ -155,7 +156,7 @@ export function buildPersonalizationInsights({ lab, patientContext }) {
         nextSteps: uniq([nextStep]),
         patientNotes: {
           en: `${summaryNote} This does not confirm the cause, but it is worth discussing. Consult a licensed healthcare provider.`,
-          fr: `Un magnesium bas peut parfois survenir chez les personnes qui prennent ${matchedMedication}. Cela ne prouve pas la cause, mais il vaut mieux en parler. Consultez un professionnel de sante agree.`,
+          fr: `Un magnesium bas peut parfois survenir chez les personnes qui prennent ${matchedMedication}. Cela ne prouve pas la cause, mais il vaut mieux en parler. ${SAFETY_PHRASE_FR}`,
           ak: `Magnesium a eba fam no tumi ba nnipa a wonom ${matchedMedication} no mu bi mu. Eyi nkyere se eno na ede bae p3p33p3, nanso eho hia se wokasa ho. Consult a licensed healthcare provider.`,
         },
       };

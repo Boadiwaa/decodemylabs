@@ -17,6 +17,19 @@ describe('withSafetyPhrase', () => {
       .toBe(`Your value is high. Extra note. ${PHRASE}`);
   });
 
+  it('ends French text with the French phrase only', () => {
+    expect(withSafetyPhrase(`Votre valeur est élevée. ${PHRASE}`, 'fr'))
+      .toBe('Votre valeur est élevée. Consultez un professionnel de santé agréé.');
+    expect(withSafetyPhrase('Votre valeur est élevée. Consultez un professionnel de sante agree.', 'fr'))
+      .toBe('Votre valeur est élevée. Consultez un professionnel de santé agréé.');
+  });
+
+  it("removes Gemma's own English disclaimer from French text", () => {
+    const fr = "Votre taux est normal. *** *Disclaimer: This analysis is for informational purposes only and is not "
+      + 'a substitute for professional medical advice, diagnosis, or treatment.* Consultez un professionnel de santé agréé.';
+    expect(withSafetyPhrase(fr, 'fr')).toBe('Votre taux est normal. Consultez un professionnel de santé agréé.');
+  });
+
   it('returns an empty string for empty input', () => {
     expect(withSafetyPhrase('')).toBe('');
     expect(withSafetyPhrase(undefined)).toBe('');

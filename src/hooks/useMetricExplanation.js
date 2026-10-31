@@ -16,8 +16,10 @@ import { useModel } from '../context/ModelContext';
 import labInterpretationAgent from '../agents/LabInterpretationAgent';
 import { isExplanationConsistentWithSeverity } from '../domain/interpretation_rules';
 import { getSavedExplanation, saveExplanation } from '../services/PatientStorage';
+import { withSafetyPhrase } from '../constants/safety';
 
-const SAFETY_PHRASE = 'Consult a licensed healthcare provider.';
+export { withSafetyPhrase };
+
 const CACHE_VERSION = 'v1';
 
 let queue = Promise.resolve();
@@ -29,14 +31,9 @@ function enqueue(task) {
   return run;
 }
 
-/** Remove any copies of the safety phrase and end the text with exactly one. */
-export function withSafetyPhrase(text) {
-  const body = String(text || '')
-    .split(SAFETY_PHRASE)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return body ? `${body} ${SAFETY_PHRASE}` : '';
+/** Each language ends with its own safety phrase (explanations saved earlier had the English one in French). */
+function tidyExplanation(explanation) {
+  return { en: withSafetyPhrase(explanation.en), fr: withSafetyPhrase(explanation.fr, 'fr') };
 }
 
 /**
@@ -75,7 +72,7 @@ function generate(userId, cacheKey, input) {
       return null;
     }
 
-    const explanation = { en, fr: withSafetyPhrase(output.patient_explanation?.fr) };
+    const explanation = { en, fr: withSafetyPhrase(output.patient_explanation?.fr, 'fr') };
     await saveExplanation(userId, cacheKey, explanation);
     return explanation;
   }).finally(() => inFlight.delete(cacheKey));
@@ -115,7 +112,7 @@ export function useMetricExplanation({ lab, trend, patient, patientContext, cont
       const saved = await getSavedExplanation(user.id, cacheKey);
       if (!active) return;
       if (saved) {
-        setState({ status: 'ready', explanation: saved });
+        setState({ status: 'ready', explanation: tidyExplanation(saved) });
         return;
       }
       if (!isModelReady) {

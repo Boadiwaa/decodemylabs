@@ -17,6 +17,7 @@ import TTSPlayer from '../components/TTSPlayer';
 import ExplanationFeedback from '../components/ExplanationFeedback';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
+import { SAFETY_PHRASE_FR, withSafetyPhrase } from '../constants/safety';
 
 function getNumericValue(result) {
   if (!result) return NaN;
@@ -58,17 +59,17 @@ function buildEnglishExplanation({ result, severity, trendAnalysis, personalizat
 }
 
 function buildFrenchExplanation({ result, severity, personalization }) {
-  if (!result) return 'Aucune donnee de test disponible. Consult a licensed healthcare provider.';
+  if (!result) return `Aucune donnée de test disponible. ${SAFETY_PHRASE_FR}`;
 
   const statusSentence = severity === 'danger'
-    ? 'Ce resultat est en dehors de la plage attendue et doit etre discute rapidement.'
+    ? 'Ce résultat est en dehors de la plage attendue et doit être discuté rapidement.'
     : severity === 'warn'
-      ? 'Ce resultat est legerement hors de la plage attendue et merite un suivi.'
-      : 'Ce resultat est dans la plage attendue.';
+      ? 'Ce résultat est légèrement hors de la plage attendue et mérite un suivi.'
+      : 'Ce résultat est dans la plage attendue.';
 
   const personalizationNote = personalization?.patientNotes?.fr ? ` ${personalization.patientNotes.fr}` : '';
 
-  return `Votre resultat ${result.test_name} est ${result.result_value}. Plage de reference: ${result.normal_range}. ${statusSentence}${personalizationNote} Consult a licensed healthcare provider.`;
+  return withSafetyPhrase(`Votre résultat ${result.test_name} est ${result.result_value}. Plage de référence : ${result.normal_range}. ${statusSentence}${personalizationNote}`, 'fr');
 }
 
 function buildAkanExplanation({ result, severity, personalization }) {

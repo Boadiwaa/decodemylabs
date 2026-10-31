@@ -15,6 +15,7 @@ import { analyzeTrend, assessUrgency } from '../domain/interpretation_rules';
 import { buildPersonalizationInsights } from '../domain/personalization';
 import { getAge, formatDate } from '../utils/helpers';
 import { getFullPatientContext } from '../services/PatientStorage';
+import { SAFETY_PHRASE_FR } from '../constants/safety';
 import {
   SYSTEM_PROMPT,
   PATIENT_INSTRUCTIONS,
@@ -461,7 +462,7 @@ function buildFallbackInterpretation({ patient, lab, trend, mode, patientContext
     ],
     patient_explanation: {
       en: `Your ${testName} result is ${lab.result_value}. The normal range is ${lab.normal_range}. ${severity !== 'safe' ? 'This is outside the normal range, so it is important to talk with your doctor.' : 'This is within normal range — keep up the good work!'}${conditionNote}${medNote} Consult a licensed healthcare provider.`,
-      fr: `Votre resultat de ${testName} est ${lab.result_value}. La plage normale est ${lab.normal_range}. ${severity !== 'safe' ? 'Ce resultat est en dehors de la plage normale. Veuillez consulter votre medecin.' : 'Ce resultat est normal. Continuez ainsi!'}${conditionNote ? ' Compte tenu de vos antecedents medicaux, votre medecin pourrait vouloir examiner cela en contexte.' : ''}${medNote ? ' Certains medicaments peuvent affecter les resultats. Mentionnez vos medicaments actuels a votre medecin.' : ''} Consultez un professionnel de sante agree.`,
+      fr: `Votre resultat de ${testName} est ${lab.result_value}. La plage normale est ${lab.normal_range}. ${severity !== 'safe' ? 'Ce resultat est en dehors de la plage normale. Veuillez consulter votre medecin.' : 'Ce resultat est normal. Continuez ainsi!'}${conditionNote ? ' Compte tenu de vos antecedents medicaux, votre medecin pourrait vouloir examiner cela en contexte.' : ''}${medNote ? ' Certains medicaments peuvent affecter les resultats. Mentionnez vos medicaments actuels a votre medecin.' : ''} ${SAFETY_PHRASE_FR}`,
       ak: `Wo ${testName} result ye ${lab.result_value}. Normal range no ye ${lab.normal_range}. ${severity !== 'safe' ? 'Eyi wo normal range no akyi. Ka ho asem kyer3 wo doctor.' : 'Eyi ye normal. Toa so saa ara!'}${conditionNote ? ' Wo yaree a ewo ho no nti, wo doctor b3hw3 mu yie.' : ''}${medNote ? ' Nnuro bi tumi sesa lab results. Ka wo nnuro ho asem kyer3 wo doctor.' : ''} Consult a licensed healthcare provider.`,
     },
     next_steps: nextSteps,

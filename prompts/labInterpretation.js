@@ -58,4 +58,4 @@ EXPLANATION:
 EXPLICATION:
 (The same explanation in French)
 
-Do not add any other sections or headers. End each explanation with: "Consult a licensed healthcare provider."`;
+Do not add any other sections or headers. End the English explanation with: "Consult a licensed healthcare provider." End the French explanation with: "Consultez un professionnel de santé agréé."`;
