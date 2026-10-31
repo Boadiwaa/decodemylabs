@@ -50,6 +50,11 @@ describe('buildFeedbackMessage', () => {
     expect(body).toContain('Gemma 2 of 3, standard 0 of 0');
   });
 
+  it('says where Gemma ran when it is loaded', () => {
+    expect(buildFeedbackMessage({ aiBackend: 'gpu' }, device).body).toContain('Pixel 9a · Gemma on GPU');
+    expect(buildFeedbackMessage({ aiBackend: null }, device).body).not.toContain('Gemma on');
+  });
+
   it('handles a message with nothing chosen', () => {
     const { subject, body } = buildFeedbackMessage({}, device);
     expect(subject).toBe('TalkingLabs feedback: General');

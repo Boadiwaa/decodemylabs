@@ -15,8 +15,8 @@ class ExpoLiteRTModule : Module() {
     AsyncFunction("initialize") { payload: Map<String, Any?>, promise: Promise ->
       runAsync(promise, "ERR_INIT") {
         val modelPath = parseModelPathFromPayload(payload)
-        engine.initialize(modelPath)
-        null
+        val backend = engine.initialize(modelPath, payload["backend"] as? String ?: "cpu")
+        mapOf("backend" to backend, "gpuError" to engine.gpuError)
       }
     }
 

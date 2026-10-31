@@ -23,3 +23,15 @@ export const LITERT_MODEL_FILENAME = String(
   process.env.EXPO_PUBLIC_LITERT_MODEL_FILENAME || 'gemma-4-E2B-it.litertlm'
 ).trim();
 
+
+/**
+ * Where Gemma writes text on Android (photo reading always stays on the CPU):
+ * - 'cpu' (default): the tested setup.
+ * - 'auto': try the GPU and fall back to the CPU; a phone whose GPU fails or crashes
+ *   is remembered and uses the CPU from then on.
+ * - 'gpu' / 'gpu_fail_test': testing only; the second simulates a GPU start-up failure.
+ * Keep release builds on 'cpu' until 'auto' has been tested on real phones.
+ */
+const BACKEND_OPTIONS = ['cpu', 'auto', 'gpu', 'gpu_fail_test'];
+const rawBackend = String(process.env.EXPO_PUBLIC_LITERT_BACKEND || 'cpu').toLowerCase();
+export const LITERT_BACKEND = BACKEND_OPTIONS.includes(rawBackend) ? rawBackend : 'cpu';

@@ -14,35 +14,78 @@ class LiteRTEngine {
   private var loadedModelPath: String? = null
   private var engine: Engine? = null
 
-  fun initialize(modelPath: String) {
+  /** Backend running text generation: "gpu" or "cpu". */
+  var activeBackend: String = "cpu"
+    private set
+
+  /** Why the GPU didn't start, when it was asked for and the CPU was used instead. */
+  var gpuError: String? = null
+    private set
+
+  /**
+   * Start the engine. With preferredBackend "gpu", text generation runs on the GPU,
+   * falling back to the CPU when GPU start-up throws (no driver, unsupported chip).
+   * A driver that crashes the process can't be caught here; LiteRTService handles that.
+   * "gpu_fail_test" simulates a GPU start-up failure, for testing the fallback.
+   * Photo reading always stays on the CPU.
+   * @return the backend in use: "gpu" or "cpu"
+   */
+  fun initialize(modelPath: String, preferredBackend: String = "cpu"): String {
     val normalizedModelPath = normalizePath(modelPath)
     val modelFile = File(normalizedModelPath)
     if (!modelFile.exists()) {
       throw IllegalArgumentException("LiteRT model file not found at: $normalizedModelPath")
     }
+    val wantsGpu = preferredBackend == "gpu" || preferredBackend == "gpu_fail_test"
 
     synchronized(lock) {
-      if (initialized && loadedModelPath == normalizedModelPath) {
-        return
+      if (initialized && loadedModelPath == normalizedModelPath && (activeBackend == "gpu") == wantsGpu) {
+        return activeBackend
       }
 
       releaseLocked()
+      gpuError = null
 
-      val engineConfig = EngineConfig(
-        modelPath = normalizedModelPath,
-        backend = Backend.CPU(),
-        // Without a vision backend the engine segfaults on image input.
-        // Images are sent one per message.
-        visionBackend = Backend.CPU(),
-        maxNumImages = 1,
-      )
-      val activeEngine = Engine(engineConfig)
-      activeEngine.initialize()
+      if (wantsGpu) {
+        try {
+          if (preferredBackend == "gpu_fail_test") {
+            throw IllegalStateException("Simulated GPU start-up failure")
+          }
+          startLocked(normalizedModelPath, Backend.GPU())
+          activeBackend = "gpu"
+          return activeBackend
+        } catch (e: Exception) {
+          gpuError = e.message ?: e.javaClass.simpleName
+          releaseLocked()
+        }
+      }
 
-      engine = activeEngine
-      loadedModelPath = normalizedModelPath
-      initialized = true
+      startLocked(normalizedModelPath, Backend.CPU())
+      activeBackend = "cpu"
+      return activeBackend
     }
+  }
+
+  private fun startLocked(modelPath: String, textBackend: Backend) {
+    val engineConfig = EngineConfig(
+      modelPath = modelPath,
+      backend = textBackend,
+      // Without a vision backend the engine segfaults on image input.
+      // Images are sent one per message.
+      visionBackend = Backend.CPU(),
+      maxNumImages = 1,
+    )
+    val activeEngine = Engine(engineConfig)
+    try {
+      activeEngine.initialize()
+    } catch (e: Exception) {
+      try { activeEngine.close() } catch (_: Exception) {}
+      throw e
+    }
+
+    engine = activeEngine
+    loadedModelPath = modelPath
+    initialized = true
   }
 
   fun complete(prompt: String, params: Map<String, Any?>): String {

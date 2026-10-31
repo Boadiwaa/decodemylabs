@@ -181,8 +181,8 @@ export const modelDownloader = new ModelDownloader();
 
 /**
  * Delete the downloaded model to free space. The app falls back to standard explanations.
- * LiteRT also writes cache files next to the model (about 1 GB); they belong to
- * this model file, so they go too.
+ * LiteRT also writes cache files next to the model (about 1 GB, named after it,
+ * e.g. ".xnnpack_cache" and GPU caches); they belong to this model file, so they go too.
  */
 export async function deleteDownloadedModel() {
   await modelDownloader.cancel();
@@ -190,7 +190,7 @@ export async function deleteDownloadedModel() {
   try {
     const names = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory);
     await Promise.all(names
-      .filter((name) => name.startsWith(LITERT_MODEL_FILENAME) && name.includes('xnnpack_cache'))
+      .filter((name) => name.startsWith(`${LITERT_MODEL_FILENAME}.`))
       .map((name) => FileSystem.deleteAsync(`${FileSystem.documentDirectory}${name}`, { idempotent: true })));
   } catch (e) {
     console.warn('[ModelSetup] Could not clear model cache files:', e.message);

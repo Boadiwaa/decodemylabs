@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
-import { LITERT_MODEL_FILENAME } from '../constants/inference';
+import { LITERT_BACKEND, LITERT_MODEL_FILENAME } from '../constants/inference';
 
 const CANDIDATE_NATIVE_MODULES = [
   'TalkingLabsLiteRT',
@@ -32,6 +32,10 @@ const INIT_MARKER_KEY = '@talkinglabs/litert_init_in_progress';
 // Bump when the litertlm-android dependency changes so a previously crashing
 // model gets one fresh attempt on the new runtime.
 const LITERT_RUNTIME_VERSION = '0.10.2';
+
+// Per phone: whether the GPU can run the model ({ status: 'ok' | 'unsafe', reason, modelSize, runtimeVersion }).
+// Kept until the model or runtime changes, so a GPU that failed once isn't retried on every launch.
+const GPU_STATUS_KEY = '@talkinglabs/litert_gpu_status';
 
 function resolveNativeModule() {
   try {
@@ -87,12 +91,19 @@ class LiteRTService {
     this._modelPath = null;
     this._nativeModule = null;
     this._nativeModuleName = null;
+    this._backend = 'cpu';
+    this._gpuTrial = null; // marker while the GPU writes its first answer on this phone
 
     this.refreshNativeBinding();
   }
 
   get isReady() {
     return this._ready;
+  }
+
+  /** Backend running text generation: 'gpu' or 'cpu'. */
+  get backend() {
+    return this._backend;
   }
 
   get modelPath() {
@@ -213,7 +224,8 @@ class LiteRTService {
       throw new Error('LiteRT native module is not available in this build.');
     }
 
-    let lastError = null;
+    // The first call is the real attempt; later payload shapes usually fail only on their argument types.
+    let firstError = null;
 
     for (const methodName of methodNames) {
       const fn = this._nativeModule?.[methodName];
@@ -233,12 +245,12 @@ class LiteRTService {
             return JSON.stringify(response);
           }
         } catch (error) {
-          lastError = error;
+          if (!firstError) firstError = error;
         }
       }
     }
 
-    if (lastError) throw lastError;
+    if (firstError) throw firstError;
     throw new Error('No compatible LiteRT native inference method was found.');
   }
 
@@ -271,12 +283,16 @@ class LiteRTService {
       throw new Error('LiteRT native module does not expose initialize/init.');
     }
 
-    const marker = await this._buildInitMarker(resolvedPath);
-    await this._assertNoPriorCrash(marker);
+    const baseMarker = await this._buildInitMarker(resolvedPath);
+    await this._assertNoPriorCrash(baseMarker);
+    const requested = await this._chooseBackend(baseMarker);
+    const marker = { ...baseMarker, backend: requested === 'cpu' ? 'cpu' : 'gpu', phase: 'load' };
     await this._writeInitMarker(marker);
 
+    const startedAt = Date.now();
+    let result = null;
     try {
-      await initFn.call(this._nativeModule, { modelPath: rawPath });
+      result = await initFn.call(this._nativeModule, { modelPath: rawPath, backend: requested });
     } catch (firstError) {
       try {
         await initFn.call(this._nativeModule, rawPath);
@@ -288,11 +304,114 @@ class LiteRTService {
       }
     }
 
+    this._backend = result?.backend === 'gpu' ? 'gpu' : 'cpu';
+    console.log(`[LiteRTService] Model ready on ${this._backend} in ${Date.now() - startedAt} ms`);
+    // Only a build that reports its backend can say the GPU failed; older builds return nothing.
+    if (marker.backend === 'gpu' && result?.backend === 'cpu') {
+      console.warn('[LiteRTService] GPU unavailable, using the CPU:', result?.gpuError || 'unknown reason');
+      await this._saveGpuStatus(baseMarker, 'unsafe', result?.gpuError || 'GPU did not start');
+    }
+
     await this.clearCrashMarker();
+    // Trust the GPU only after its first answer: some drivers crash while generating, not while loading.
+    this._gpuTrial = this._backend === 'gpu' && (await this._readGpuStatus(baseMarker))?.status !== 'ok'
+      ? { ...marker, phase: 'first_run' }
+      : null;
 
     this._ready = true;
     this._modelPath = resolvedPath;
     return resolvedPath;
+  }
+
+  // -- Backend choice --
+
+  async _chooseBackend(baseMarker) {
+    if (LITERT_BACKEND === 'cpu') return 'cpu';
+    if (LITERT_BACKEND !== 'auto') return LITERT_BACKEND; // forced, for testing
+    const saved = await this._readGpuStatus(baseMarker);
+    return saved?.status === 'unsafe' ? 'cpu' : 'gpu';
+  }
+
+  /** Saved GPU result for this model and runtime, or null. */
+  async _readGpuStatus(baseMarker) {
+    try {
+      const saved = JSON.parse((await AsyncStorage.getItem(GPU_STATUS_KEY)) || 'null');
+      if (saved && saved.modelSize === baseMarker.modelSize && saved.runtimeVersion === baseMarker.runtimeVersion) {
+        return saved;
+      }
+    } catch (_) {
+      // Treated as untested.
+    }
+    return null;
+  }
+
+  async _saveGpuStatus(baseMarker, status, reason = null) {
+    try {
+      await AsyncStorage.setItem(GPU_STATUS_KEY, JSON.stringify({
+        status,
+        reason,
+        modelSize: baseMarker.modelSize,
+        runtimeVersion: baseMarker.runtimeVersion,
+        at: new Date().toISOString(),
+      }));
+    } catch (error) {
+      console.warn('[LiteRTService] Could not save GPU status:', error.message);
+    }
+  }
+
+  /** While the GPU is on trial, mark the answer in progress so a crash during it is recognised next launch. */
+  async _beforeAnswer() {
+    if (this._gpuTrial) await this._writeInitMarker(this._gpuTrial);
+    return Date.now();
+  }
+
+  /**
+   * The GPU failed its first answer (it can start but still be unable to generate,
+   * e.g. "Can not find OpenCL library"). Remember that, and restart on the CPU now
+   * so the answer can be retried straight away.
+   * @returns {Promise<boolean>} true when it switched to the CPU and the answer should be retried
+   */
+  async _fallBackToCpu(error) {
+    if (!this._gpuTrial) return false;
+    const trial = this._gpuTrial;
+    this._gpuTrial = null;
+    await this._saveGpuStatus(trial, 'unsafe', `First answer failed: ${error?.message || 'unknown error'}`);
+    await this.clearCrashMarker();
+    console.warn('[LiteRTService] GPU failed its first answer; switching to the CPU:', error?.message);
+    try {
+      const initFn = this._nativeModule.initialize || this._nativeModule.init;
+      await initFn.call(this._nativeModule, { modelPath: toRawPath(trial.modelPath), backend: 'cpu' });
+      this._backend = 'cpu';
+      return true;
+    } catch (restartError) {
+      console.warn('[LiteRTService] Could not restart on the CPU:', restartError.message);
+      this._ready = false;
+      return false;
+    }
+  }
+
+  /** Run one answer: time it, and on a GPU trial failure retry once on the CPU. */
+  async _answer(kind, methodNames, payloadVariants) {
+    const startedAt = await this._beforeAnswer();
+    let text;
+    try {
+      text = await this._invokeNative(methodNames, payloadVariants);
+    } catch (error) {
+      if (!(await this._fallBackToCpu(error))) throw error;
+      text = await this._invokeNative(methodNames, payloadVariants);
+    }
+    await this._afterAnswer(kind, startedAt, text);
+    return text;
+  }
+
+  /** After a successful answer: time it, and end the GPU's trial if it's on one. */
+  async _afterAnswer(kind, startedAt, text) {
+    console.log(`[LiteRTService] ${kind} on ${this._backend}: ${Date.now() - startedAt} ms, ${String(text || '').length} characters`);
+    if (this._gpuTrial) {
+      await this._saveGpuStatus(this._gpuTrial, 'ok');
+      this._gpuTrial = null;
+      await this.clearCrashMarker();
+    }
   }
 
   // -- Crash guard --
@@ -322,6 +441,14 @@ class LiteRTService {
       previous.modelPath === marker.modelPath &&
       previous.modelSize === marker.modelSize &&
       previous.runtimeVersion === marker.runtimeVersion;
+
+    if (sameAttempt && previous.backend === 'gpu') {
+      // The GPU crashed the app (while loading or on its first answer): use the CPU on this phone from now on.
+      console.warn(`[LiteRTService] The GPU crashed the app during ${previous.phase || 'load'}; using the CPU from now on.`);
+      await this._saveGpuStatus(marker, 'unsafe', `Crashed during ${previous.phase || 'load'}`);
+      await this.clearCrashMarker();
+      return;
+    }
 
     if (sameAttempt) {
       throw new Error(
@@ -358,7 +485,8 @@ class LiteRTService {
       throw new Error('LiteRT runtime is not initialized. Call initialize() first.');
     }
 
-    const text = await this._invokeNative(
+    const text = await this._answer(
+      'Text',
       ['complete', 'generateText', 'inferText'],
       [
         { prompt, params },
@@ -380,7 +508,8 @@ class LiteRTService {
     }
 
     const normalizedImageUri = normalizeToFileUri(imageUri);
-    return this._invokeNative(
+    return this._answer(
+      'Photo',
       ['completeWithImage', 'inferImage', 'analyzeImage'],
       [
         { systemPrompt, userText, imageUri: normalizedImageUri, params },
@@ -402,6 +531,8 @@ class LiteRTService {
     } finally {
       this._ready = false;
       this._modelPath = null;
+      this._backend = 'cpu';
+      this._gpuTrial = null;
     }
   }
 }

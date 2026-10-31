@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { getExplanationRatings, summarizeExplanationRatings } from '../services/PatientStorage';
 import { buildFeedbackMessage, sendFeedback } from '../services/Feedback';
+import liteRTService from '../services/LiteRTService';
 import { FEEDBACK_EMAIL, FEEDBACK_TOPICS } from '../constants/feedback';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
@@ -38,7 +39,9 @@ export default function FeedbackScreen({ navigation, route }) {
     setSending(true);
     try {
       const ratings = user?.id ? summarizeExplanationRatings(await getExplanationRatings(user.id)) : null;
-      const result = await sendFeedback(buildFeedbackMessage({ rating, topic, comment, ratings }));
+      const result = await sendFeedback(buildFeedbackMessage({
+        rating, topic, comment, ratings, aiBackend: liteRTService.isReady ? liteRTService.backend : null,
+      }));
       if (result !== 'cancelled') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setSentVia(result);

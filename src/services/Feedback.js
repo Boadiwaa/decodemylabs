@@ -21,10 +21,11 @@ export const APP_VERSION = appConfig.expo.version;
  * @param {string} [feedback.topic] - FEEDBACK_TOPICS key
  * @param {string} [feedback.comment]
  * @param {object} [feedback.ratings] - summarizeExplanationRatings() output
+ * @param {'gpu'|'cpu'|null} [feedback.aiBackend] - Where Gemma ran, when it's loaded
  * @param {object} [device] - { os, osVersion, model } (defaults to this phone)
  * @returns {{ subject: string, body: string }}
  */
-export function buildFeedbackMessage({ rating, topic, comment, ratings }, device = currentDevice()) {
+export function buildFeedbackMessage({ rating, topic, comment, ratings, aiBackend }, device = currentDevice()) {
   const topicLabel = FEEDBACK_TOPICS.find((t) => t.key === topic)?.label || 'General';
   const lines = [
     `Rating: ${rating ? `${rating} out of 5` : 'not given'}`,
@@ -33,7 +34,8 @@ export function buildFeedbackMessage({ rating, topic, comment, ratings }, device
     (comment || '').trim() || '(no comment)',
     '',
     '---',
-    `TalkingLabs ${APP_VERSION} · ${device.os} ${device.osVersion} · ${device.model}`,
+    `TalkingLabs ${APP_VERSION} · ${device.os} ${device.osVersion} · ${device.model}`
+      + (aiBackend ? ` · Gemma on ${aiBackend.toUpperCase()}` : ''),
   ];
   if (ratings) {
     const { gemma, standard } = ratings;

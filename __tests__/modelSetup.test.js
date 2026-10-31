@@ -77,6 +77,7 @@ describe('model download', () => {
     mockFiles[MODEL] = MODEL_DOWNLOAD.bytes;
     mockFiles[`${MODEL}.xnnpack_cache_1_2`] = 788412736;
     mockFiles[`${MODEL}.vision_encoder.xnnpack_cache`] = 217562184;
+    mockFiles[`${MODEL}.gpu_cache`] = 1000;
     mockFiles['file:///docs/other.txt'] = 10;
     await deleteDownloadedModel();
     expect(Object.keys(mockFiles)).toEqual(['file:///docs/other.txt']);
