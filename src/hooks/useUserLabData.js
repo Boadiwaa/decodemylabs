@@ -72,6 +72,11 @@ function buildDisplayData(storedResults, allResults, profile, user) {
       date: result.date,
       severity,
       source_report_id: result.source_report_id || null,
+      // Evidence trail for the clinician summary (absent on results saved before it was recorded)
+      result_id: result.id,
+      date_found: result.date_found ?? null,
+      date_confirmed: result.date_confirmed ?? false,
+      provenance: result.provenance || null,
       explanation: '',
     });
 
@@ -265,6 +270,7 @@ export function useUserLabData() {
     isLoading,
     hasRealData,
     userData,
+    allResults,
     reportSessions,
     getPatients,
     getLabResultsFn,

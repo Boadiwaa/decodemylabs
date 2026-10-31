@@ -33,7 +33,7 @@ import {
   appendLabResults, deleteLabResultsByReport, deleteLabResultById, updateReportResultsDate,
 } from '../services/PatientStorage';
 import {
-  parseLabReportFromImage, parseLabReportWithModel, recognizeTextFromImage,
+  makeProvenance, parseLabReportFromImage, parseLabReportWithModel, recognizeTextFromImage,
 } from '../services/LabReportParser';
 import { classifySeverity, formatNormalRange, REFERENCE_RANGES } from '../domain/reference_ranges';
 import { sortByLabGroup } from '../domain/lab_groups';
@@ -297,7 +297,10 @@ export default function LabUploadScreen({ navigation }) {
     const numericValue = parseFloat(manualValue);
     const ref = REFERENCE_RANGES[manualTest];
     const unit = manualUnit || ref?.unit || '';
-    const range = manualRange || (ref ? formatNormalRange(ref.normal, ref.unit) : '');
+    const defaultRange = ref ? formatNormalRange(ref.normal, ref.unit) : '';
+    const range = manualRange || defaultRange;
+    // A typed value for a test already read from this report is a correction; keep what it replaced.
+    const replaced = (parsedResults || []).find((r) => r.test_name === manualTest && r.source_report_id === currentReportId);
 
     const result = {
       id: `manual_${Date.now()}`,
@@ -309,6 +312,9 @@ export default function LabUploadScreen({ navigation }) {
       date: manualDate,
       severity: isNaN(numericValue) ? 'safe' : classifySeverity(manualTest, numericValue, unit),
       source_report_id: currentReportId || 'manual',
+      provenance: makeProvenance('typed', range && range !== defaultRange ? 'typed' : 'app', replaced ? {
+        replaced: { value: replaced.result_value, read_by: replaced.provenance?.read_by || null },
+      } : {}),
     };
 
     await appendLabResults(user.id, [result]);

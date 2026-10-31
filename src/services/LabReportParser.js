@@ -144,10 +144,10 @@ export async function parseLabReportFromImage(imageUri, reportId, onProgress) {
     console.log('[LabReportParser] Gemma vision output (first 500):', rawOutput?.slice(0, 500));
 
     // Read the test date from on-device OCR rather than trusting the model's reading.
-    let results = parseModelExtractionOutput(rawOutput, reportId);
+    let results = parseModelExtractionOutput(rawOutput, reportId, null, 'gemma_photo');
     if (results.length > 0) {
       const textDate = extractReportDate(await recognizeTextFromImage(imageUri));
-      results = parseModelExtractionOutput(rawOutput, reportId, textDate);
+      results = parseModelExtractionOutput(rawOutput, reportId, textDate, 'gemma_photo');
       console.log(`[LabReportParser] Vision extracted ${results.length} lab results`);
       onProgress?.(1.0);
       return results;
@@ -195,7 +195,7 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
 
       onProgress?.(0.7);
 
-      const results = parseModelExtractionOutput(rawOutput, reportId, textDate);
+      const results = parseModelExtractionOutput(rawOutput, reportId, textDate, 'gemma_text');
       if (results.length > 0) {
         onProgress?.(1.0);
         return results;
@@ -221,8 +221,9 @@ export async function parseLabReportWithModel(reportText, reportId, onProgress) 
  * @param {string} rawOutput
  * @param {string} reportId
  * @param {string|null} [textDate] - Test date read from the report text
+ * @param {'gemma_photo'|'gemma_text'} readBy - How the values were read, kept with each result
  */
-function parseModelExtractionOutput(rawOutput, reportId, textDate) {
+function parseModelExtractionOutput(rawOutput, reportId, textDate, readBy) {
   const results = [];
   if (!rawOutput) return results;
 
@@ -233,7 +234,7 @@ function parseModelExtractionOutput(rawOutput, reportId, textDate) {
       const arr = JSON.parse(jsonArrayMatch[0]);
       if (Array.isArray(arr)) {
         for (const parsed of arr) {
-          const result = buildResult(parsed, reportId, results.length, textDate);
+          const result = buildResult(parsed, reportId, results.length, textDate, readBy);
           if (result) results.push(result);
         }
         if (results.length > 0) return results;
@@ -251,7 +252,7 @@ function parseModelExtractionOutput(rawOutput, reportId, textDate) {
 
     try {
       const parsed = JSON.parse(trimmed);
-      const result = buildResult(parsed, reportId, results.length, textDate);
+      const result = buildResult(parsed, reportId, results.length, textDate, readBy);
       if (result) results.push(result);
     } catch (e) {
       // Try to extract JSON from the line (model may wrap in extra text)
@@ -259,7 +260,7 @@ function parseModelExtractionOutput(rawOutput, reportId, textDate) {
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
-          const result = buildResult(parsed, reportId, results.length, textDate);
+          const result = buildResult(parsed, reportId, results.length, textDate, readBy);
           if (result) results.push(result);
         } catch (e2) {
           // skip
@@ -279,8 +280,9 @@ function parseModelExtractionOutput(rawOutput, reportId, textDate) {
  * @param {string} reportId
  * @param {number} index
  * @param {string|null} [textDate] - Test date read from the report text
+ * @param {'gemma_photo'|'gemma_text'} readBy
  */
-function buildResult(parsed, reportId, index, textDate) {
+function buildResult(parsed, reportId, index, textDate, readBy) {
   if (!parsed || !parsed.test_name || parsed.result_value == null) return null;
 
   const testName = normalizeTestName(parsed.test_name);
@@ -307,6 +309,7 @@ function buildResult(parsed, reportId, index, textDate) {
       normalRange = null;
     }
   }
+  const rangeSource = normalRange ? 'report' : 'app';
   normalRange = normalRange || getDefaultRange(testName, unit);
 
   // Dates come only from labelled report text, where the day-first rule is applied
@@ -324,7 +327,18 @@ function buildResult(parsed, reportId, index, textDate) {
     date_found: Boolean(reportDate),
     severity: classifySeverity(testName, numericValue, unit),
     source_report_id: reportId,
+    provenance: makeProvenance(readBy, rangeSource),
   };
+}
+
+/**
+ * How a value was obtained, kept with it for the evidence trail in the clinician summary.
+ * @param {'gemma_photo'|'gemma_text'|'text_pattern'|'typed'} readBy
+ * @param {'report'|'app'|'typed'} rangeSource - Where the normal range came from
+ * @param {object} [extra] - e.g. { replaced: { value, read_by } } for a correction
+ */
+export function makeProvenance(readBy, rangeSource, extra = {}) {
+  return { read_by: readBy, range_source: rangeSource, read_at: new Date().toISOString(), ...extra };
 }
 
 /**
@@ -396,6 +410,7 @@ function extractWithRegex(text, reportId) {
           date_found: Boolean(reportDate),
           severity: classifySeverity(tp.name, numericValue, unit),
           source_report_id: reportId,
+          provenance: makeProvenance('text_pattern', rangeFromLine ? 'report' : 'app'),
         });
       }
     }
