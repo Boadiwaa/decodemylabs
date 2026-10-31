@@ -164,3 +164,55 @@ export function buildPersonalizationInsights({ lab, patientContext }) {
 
   return null;
 }
+
+// -- Tests worth tracking for a patient's conditions and medicines --
+
+// Tests commonly checked for a condition (keys are MedicalHistoryScreen ids;
+// `match` catches free-text "other" conditions).
+const CONDITION_LINKS = [
+  { ids: ['diabetes_type1', 'diabetes_type2'], match: /diabet/i, label: 'diabetes',
+    tests: ['Glucose', 'HbA1c', 'Creatinine', 'eGFR', 'Cholesterol', 'LDL', 'Triglycerides'] },
+  { ids: ['hypertension'], match: /hypertension|blood pressure/i, label: 'high blood pressure',
+    tests: ['Creatinine', 'eGFR', 'Potassium', 'Sodium'] },
+  { ids: ['ckd'], match: /kidney|renal/i, label: 'kidney disease',
+    tests: ['Creatinine', 'eGFR', 'BUN', 'Urea', 'Potassium', 'Sodium', 'Bicarbonate', 'Phosphate', 'Calcium', 'Hemoglobin'] },
+  { ids: ['liver_disease'], match: /liver|hepatitis|cirrhosis/i, label: 'liver disease',
+    tests: ['ALT', 'AST', 'ALP', 'GGT', 'Bilirubin', 'Direct Bilirubin', 'Albumin'] },
+  { ids: ['heart_disease', 'high_cholesterol', 'stroke'], match: /heart|cholesterol|stroke/i, label: 'heart and blood vessel health',
+    tests: ['Cholesterol', 'LDL', 'HDL', 'Triglycerides'] },
+  { ids: ['sickle_cell'], match: /sickle/i, label: 'sickle cell disease',
+    tests: ['Hemoglobin', 'Bilirubin', 'Indirect Bilirubin', 'Creatinine'] },
+  { ids: ['thyroid'], match: /thyroid/i, label: 'thyroid disease', tests: ['TSH'] },
+];
+
+// Tests commonly checked for people taking a medicine.
+const MEDICINE_LINKS = [
+  { names: ['metformin'], tests: ['Creatinine', 'eGFR'] },
+  { names: ['atorvastatin', 'simvastatin', 'rosuvastatin', 'pravastatin', 'lovastatin'], tests: ['ALT', 'AST', 'Cholesterol', 'LDL'] },
+  { names: ['lisinopril', 'enalapril', 'ramipril', 'captopril', 'perindopril', 'losartan', 'valsartan', 'telmisartan', 'candesartan', 'irbesartan'],
+    tests: ['Potassium', 'Creatinine', 'eGFR'] },
+  { names: ['hydrochlorothiazide', 'chlorthalidone', 'indapamide', 'furosemide', 'bumetanide', 'spironolactone'],
+    tests: ['Sodium', 'Potassium', 'Creatinine'] },
+  { names: ['omeprazole', 'esomeprazole', 'pantoprazole', 'lansoprazole', 'rabeprazole'], tests: ['Magnesium'] },
+  { names: ['levothyroxine', 'carbimazole', 'methimazole'], tests: ['TSH'] },
+  { names: ['tenofovir'], tests: ['Creatinine', 'eGFR', 'Phosphate'] },
+];
+
+/**
+ * Reasons a test is commonly watched for this patient's conditions and medicines
+ * (used by monitoring.js). Phrased as "often checked", never as a cause.
+ */
+export function linkedReasons(testName, conditions = [], medications = []) {
+  const reasons = [];
+  for (const link of CONDITION_LINKS) {
+    if (!link.tests.includes(testName)) continue;
+    const has = conditions.some((c) => link.ids.includes(c?.id) || link.match.test(String(c?.name || '')));
+    if (has) reasons.push(`Often checked for people with ${link.label}.`);
+  }
+  for (const link of MEDICINE_LINKS) {
+    if (!link.tests.includes(testName)) continue;
+    const med = medications.find((m) => link.names.some((n) => String(m?.name || '').toLowerCase().includes(n)));
+    if (med) reasons.push(`Often checked for people taking ${med.name}.`);
+  }
+  return reasons;
+}

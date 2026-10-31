@@ -12,6 +12,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import PatientDetailScreen from '../screens/PatientDetailScreen';
 import ReportScreen from '../screens/ReportScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
+import ClinicianSummaryScreen from '../screens/ClinicianSummaryScreen';
 import MetricDetailScreen from '../screens/MetricDetailScreen';
 import TrendsScreen from '../screens/TrendsScreen';
 import RemindersScreen from '../screens/RemindersScreen';
@@ -80,6 +81,7 @@ function HomeStackNavigator() {
         <HomeStack.Screen name="PatientDetail" component={PatientDetailScreen} />
         <HomeStack.Screen name="LabUpload" component={LabUploadScreen} />
         <HomeStack.Screen name="Feedback" component={FeedbackScreen} />
+        <HomeStack.Screen name="ClinicianSummary" component={ClinicianSummaryScreen} />
       </HomeStack.Navigator>
     </SwipeTabWrapper>
   );
@@ -94,6 +96,7 @@ function TrendsStackNavigator() {
         <TrendsStack.Screen name="MetricDetail" component={MetricDetailScreen} />
         <TrendsStack.Screen name="PatientDetail" component={PatientDetailScreen} />
         <TrendsStack.Screen name="Feedback" component={FeedbackScreen} />
+        <TrendsStack.Screen name="ClinicianSummary" component={ClinicianSummaryScreen} />
       </TrendsStack.Navigator>
     </SwipeTabWrapper>
   );

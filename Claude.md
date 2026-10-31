@@ -54,9 +54,10 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 
 ### Domain Logic
 - reference_ranges.js - Deterministic classification and deviation
-- personalization.js - Deterministic medication and condition-aware notes
+- personalization.js - Deterministic medication and condition-aware notes, and tests often checked for a condition or medicine
 - interpretation_rules.js - Trend and urgency helpers
 - lab_groups.js - Body-system groups with patient-friendly titles; use for ordering result lists
+- monitoring.js - What to monitor closely or keep tracking, with reasons; bulleted summaries (deterministic)
 
 ### AI Agents
 - types.js - Agent output interface and validation helpers
@@ -73,6 +74,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - AkanTTSService.js - Akan TTS support
 - ModelSetup.js - One-time Gemma LiteRT model download on Android (pinned Hugging Face revision, resumable, size-checked)
 - Feedback.js - Builds the feedback message and opens the email app or share sheet
+- ClinicianSummary.js - Clinician summary: data, PDF (expo-print) with evidence trail, and QR text
 
 ### Screens
 - DashboardScreen.js - Main dashboard entry
@@ -84,6 +86,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - MedicalHistoryScreen.js - Chronic conditions, including free-text "other" conditions; onboarding step, and editable later from Settings → My health
 - DrugHistoryScreen.js - Medications; onboarding step, and editable later from Settings → My health
 - FeedbackScreen.js - Rating, topic and comment form; from Settings and under explanations
+- ClinicianSummaryScreen.js - "Share with your clinician": PDF through the share sheet or an on-screen QR code
 - PatientDetailScreen.js - Legacy detail screen; registered in navigation but not linked
 
 ### Components
@@ -95,6 +98,7 @@ TalkingLabs is a patient-facing mobile app built with Expo and React Native that
 - AppLockGate.js - Covers the app until unlock when App lock is on
 - ModelDownloadCard.js - Offers the Gemma download and shows its progress
 - ExplanationFeedback.js - "Was this explanation helpful?" thumbs, saved on-device
+- QrCode.js - On-device QR code (qrcode-generator + react-native-svg)
 
 ### Native Modules
 - modules/expo-ocr - On-device OCR (Apple Vision / ML Kit)
@@ -158,3 +162,5 @@ Interpretation chain: on-device model -> rule-based fallback -> demo/prewritten 
 - Patient-facing medical text must include: Consult a licensed healthcare provider.
 - Prefer deterministic cross-checks against reference_ranges.js before showing model-derived interpretations.
 - Do not claim OCR confidence-gating behavior unless that logic is explicitly implemented in code.
+- Every stored lab value carries `provenance` (how it was read, where its normal range came from, what a correction replaced); keep setting it for new extraction paths, as the clinician summary's evidence trail depends on it.
+- Files handed to other apps go in `utils/shareFiles.js`'s folder, not the cache, which Android empties when storage is low.

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { useUserLabData } from '../hooks/useUserLabData';
 import { getSeverityConfig, getTrendChange, formatDate } from '../utils/helpers';
 import { groupByLabGroup } from '../domain/lab_groups';
+import { buildMonitoringList, buildSummaryBullets } from '../domain/monitoring';
+import { getDrugHistory, getMedicalHistory } from '../services/PatientStorage';
 import Colors from '../constants/colors';
 import Typography from '../constants/typography';
 
@@ -28,23 +30,9 @@ function getWorstSeverity(labResults, alerts) {
   return highest;
 }
 
-function buildSummaryText({ total, dangerCount, warnCount }) {
-  if (total === 0) return 'No lab values were found in this report yet.';
-
-  if (dangerCount > 0) {
-    return `We found ${dangerCount} critical result${dangerCount > 1 ? 's' : ''} in this report. Please prioritize a medical follow-up.`;
-  }
-
-  if (warnCount > 0) {
-    return `You have ${warnCount} result${warnCount > 1 ? 's' : ''} outside the normal range. A routine follow-up is recommended.`;
-  }
-
-  return 'Your values are currently within expected reference ranges.';
-}
-
 export default function ReportScreen({ route, navigation }) {
   const { patientId = 'self', reportId } = route.params || {};
-  const { currentPatientId } = useAuth();
+  const { currentPatientId, user } = useAuth();
   const insets = useSafeAreaInsets();
   const {
     getPatients,
@@ -83,12 +71,22 @@ export default function ReportScreen({ route, navigation }) {
     };
   }, [labResults, alerts]);
 
-  const summaryText = buildSummaryText(summary);
+  const [healthContext, setHealthContext] = useState({ conditions: [], medications: [] });
+  useEffect(() => {
+    if (!user?.id) return;
+    Promise.all([getMedicalHistory(user.id), getDrugHistory(user.id)])
+      .then(([conditions, medications]) => setHealthContext({ conditions, medications }));
+  }, [user?.id]);
+
+  const summaryBullets = useMemo(() => buildSummaryBullets({
+    labResults,
+    monitoring: buildMonitoringList({ labResults, trends, ...healthContext }),
+  }), [labResults, trends, healthContext]);
   const summarySeverity = getSeverityConfig(summary.worstSeverity);
 
   const keyFindings = alerts.filter((a) => a.severity !== 'safe').slice(0, 3);
   const reportDate = reportSession?.date || labResults?.[0]?.date;
-  const reportTitle = reportSession?.fileName || (reportId ? 'Uploaded Lab Report' : 'Latest Results');
+  const reportTitle = reportSession?.fileName || (reportId ? 'Uploaded lab report' : 'Latest results');
 
   const openMetric = (testName) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -152,9 +150,38 @@ export default function ReportScreen({ route, navigation }) {
 
         <Animated.View entering={FadeInDown.delay(110).springify()} style={styles.card}>
           <Text style={styles.cardTitle}>Summary</Text>
-          <Text style={styles.cardBody}>{summaryText}</Text>
+          {summaryBullets.map((bullet) => (
+            <View key={bullet} style={styles.bulletRow}>
+              <View style={styles.bulletDot} />
+              <Text style={styles.cardBody}>{bullet}</Text>
+            </View>
+          ))}
           <Text style={styles.disclaimerText}>Consult a licensed healthcare provider.</Text>
         </Animated.View>
+
+        {labResults.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(130).springify()}>
+            <TouchableOpacity
+              style={styles.shareBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                navigation.navigate('ClinicianSummary');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Share with your clinician. A PDF or QR code summary of your results"
+            >
+              <View style={styles.shareIcon}>
+                <Ionicons name="share-social-outline" size={20} color={Colors.white} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.shareTitle}>Share with your clinician</Text>
+                <Text style={styles.shareSub}>For a second opinion or your next visit</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.white} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {keyFindings.length > 0 && (
           <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.card}>
@@ -306,7 +333,19 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   cardTitle: { ...Typography.body, fontWeight: '700', color: Colors.navy, marginBottom: 10 },
-  cardBody: { ...Typography.bodySmall, color: Colors.textPrimary, lineHeight: 20 },
+  cardBody: { ...Typography.bodySmall, color: Colors.textPrimary, flex: 1 },
+  bulletRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
+  bulletDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.teal, marginTop: 7 },
+  shareBtn: {
+    marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.teal, borderRadius: 20, padding: 14,
+  },
+  shareIcon: {
+    width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.tealDark,
+  },
+  shareTitle: { ...Typography.body, fontWeight: '700', color: Colors.white },
+  shareSub: { ...Typography.caption, color: Colors.white },
   disclaimerText: { ...Typography.caption, color: Colors.textSecondary, marginTop: 8 },
   findingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   findingText: { ...Typography.bodySmall, color: Colors.textPrimary, flex: 1 },
