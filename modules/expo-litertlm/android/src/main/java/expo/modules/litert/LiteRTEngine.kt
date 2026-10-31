@@ -51,6 +51,11 @@ class LiteRTEngine {
           if (preferredBackend == "gpu_fail_test") {
             throw IllegalStateException("Simulated GPU start-up failure")
           }
+          if (!hasOpenCl()) {
+            // LiteRT's GPU path generates text through OpenCL. Without it the engine can
+            // still start on the GPU but fails on the first answer, so don't try.
+            throw IllegalStateException("OpenCL is not available on this phone")
+          }
           startLocked(normalizedModelPath, Backend.GPU())
           activeBackend = "gpu"
           return activeBackend
@@ -63,6 +68,22 @@ class LiteRTEngine {
       startLocked(normalizedModelPath, Backend.CPU())
       activeBackend = "cpu"
       return activeBackend
+    }
+  }
+
+  /**
+   * Whether the phone's GPU driver provides OpenCL. It isn't part of Android, so phone
+   * makers ship it or not, in different folders; loading it the way Android would finds
+   * it wherever it is (and respects the manifest's <uses-native-library> on Android 12+).
+   */
+  private fun hasOpenCl(): Boolean {
+    return try {
+      System.loadLibrary("OpenCL")
+      true
+    } catch (_: UnsatisfiedLinkError) {
+      false
+    } catch (_: SecurityException) {
+      false
     }
   }
 
