@@ -235,9 +235,3 @@ This is a **prototype with mock data**. It is:
 - **Not** HIPAA-compliant. Data stays in on-device AsyncStorage, which is not encrypted, and passwords are stored as salted SHA-256 hashes, which is not production-grade credential storage.
 
 Every AI-generated explanation includes: *"Consult a licensed healthcare provider."*
-
----
-
-## License
-
-MIT — see LICENSE.

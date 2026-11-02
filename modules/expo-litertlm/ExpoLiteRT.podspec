@@ -8,7 +8,6 @@ Pod::Spec.new do |s|
   s.summary        = 'Android-first LiteRT-LM bridge for Decode My Labs'
   s.description    = 'Expo module exposing LiteRT-LM APIs. iOS currently provides a stub implementation.'
   s.homepage       = 'https://github.com/example/expo-litertlm'
-  s.license        = 'MIT'
   s.author         = 'Decode My Labs'
   s.platforms      = { :ios => '15.1' }
   s.source         = { :git => '' }
