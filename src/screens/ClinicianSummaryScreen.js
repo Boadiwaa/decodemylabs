@@ -137,7 +137,7 @@ export default function ClinicianSummaryScreen({ navigation }) {
               <Ionicons name="shield-checkmark-outline" size={18} color={Colors.tealDark} />
               <Text style={styles.privacyText}>
                 This contains your name, results and health details. Share it only with people you trust, such as
-                your doctor. TalkingLabs doesn't upload it anywhere.
+                your doctor. Decode My Labs doesn't upload it anywhere.
               </Text>
             </Animated.View>
 

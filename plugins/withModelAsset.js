@@ -79,7 +79,7 @@ function withModelAssetIOS(config, modelPath) {
       absoluteModelPath
     );
 
-    // Use the project name group (e.g. "LabLens"/"TalkingLabs") which has a valid path
+    // Use the project name group (e.g. "LabLens"/"DecodeMyLabs") which has a valid path
     const targetGroup = project.pbxGroupByName(projectName);
     if (!targetGroup) {
       console.warn(`[withModelAsset] ⚠️  Could not find group "${projectName}" in pbxproj. Trying Resources group.`);

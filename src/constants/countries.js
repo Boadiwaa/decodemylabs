@@ -1,5 +1,5 @@
 /**
- * TalkingLabs — Country list for patient registration.
+ * Decode My Labs — Country list for patient registration.
  * Sorted alphabetically. Used in DemographicsScreen dropdown.
  */
 

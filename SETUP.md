@@ -1,6 +1,6 @@
-# TalkingLabs — Setup Guide
+# Decode My Labs — Setup Guide
 
-This guide walks you through everything needed to build and run TalkingLabs. A physical device is recommended. On Android, the LiteRT runtime also runs on an **arm64** emulator started with enough memory (`emulator -avd <name> -memory 8192`) and `EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD=true`. The iOS Simulator cannot run `llama.rn`.
+This guide walks you through everything needed to build and run Decode My Labs. A physical device is recommended. On Android, the LiteRT runtime also runs on an **arm64** emulator started with enough memory (`emulator -avd <name> -memory 8192`) and `EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD=true`. The iOS Simulator cannot run `llama.rn`.
 
 ---
 
@@ -76,8 +76,8 @@ If the script fails, download the files from the repositories above and place th
 
 1. Connect your iPhone/iPad via USB and trust the computer.
 2. Open Xcode, sign the app with your Apple Developer account:
-   - Open `ios/TalkingLabs.xcworkspace`
-   - Select the `TalkingLabs` target → Signing & Capabilities
+   - Open `ios/DecodeMyLabs.xcworkspace`
+   - Select the `DecodeMyLabs` target → Signing & Capabilities
    - Set your Team to your Apple ID (free account is fine for testing)
 3. Close Xcode.
 4. Build and run:

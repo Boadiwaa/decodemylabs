@@ -19,7 +19,7 @@ import { APP_VERSION } from './Feedback';
 import { prepareShareFile } from '../utils/shareFiles';
 import { trendChartSvg } from './ClinicianSummaryCharts';
 
-export const DISCLAIMER = 'This summary was prepared by the patient with TalkingLabs. Values were read from photos '
+export const DISCLAIMER = 'This summary was prepared by the patient with Decode My Labs. Values were read from photos '
   + 'of their own lab reports on their phone and may contain reading errors: check them against the original reports. '
   + 'It is not a diagnosis. Consult a licensed healthcare provider.';
 
@@ -129,7 +129,7 @@ const QR_MAX_CHARS = 700; // keeps the code easy to scan from a phone screen
 /** Short plain-text version for the on-screen QR code. */
 export function buildQrText(summary) {
   const lines = [
-    `TalkingLabs summary ${formatDate(summary.generatedAt)}`,
+    `Decode My Labs summary ${formatDate(summary.generatedAt)}`,
     `${summary.patient.name}${summary.patient.dob ? `, born ${summary.patient.dob}` : ''}`,
   ];
   if (summary.period) lines.push(`Results ${formatDate(summary.period.from)} to ${formatDate(summary.period.to)}`);
@@ -272,7 +272,7 @@ export function renderSummaryHtml(summary) {
   <h1>Lab results summary</h1>
   <p class="meta"><b>${esc(patient.name)}</b></p>
   <p class="meta">${meta}</p>
-  <p class="meta">Prepared ${esc(formatDate(summary.generatedAt))} with TalkingLabs ${esc(APP_VERSION)}</p>
+  <p class="meta">Prepared ${esc(formatDate(summary.generatedAt))} with Decode My Labs ${esc(APP_VERSION)}</p>
   <hr class="rule">
 
   <h2>Summary</h2>
@@ -319,7 +319,9 @@ export function renderSummaryHtml(summary) {
   </body></html>`;
 }
 
-const PDF_PREFIX = 'TalkingLabs-summary-';
+const PDF_PREFIX = 'DecodeMyLabs-summary-';
+// Summaries saved before the app was renamed; removed with the next one.
+const OLD_PDF_PREFIX = 'TalkingLabs-summary-';
 
 /**
  * Make the PDF and open the share sheet (email, WhatsApp, Notes, Drive…).
@@ -327,7 +329,7 @@ const PDF_PREFIX = 'TalkingLabs-summary-';
  */
 export async function shareSummaryPdf(summary) {
   const { uri } = await Print.printToFileAsync({ html: renderSummaryHtml(summary) });
-  const target = await prepareShareFile(PDF_PREFIX, `${PDF_PREFIX}${toISODate()}.pdf`);
+  const target = await prepareShareFile([PDF_PREFIX, OLD_PDF_PREFIX], `${PDF_PREFIX}${toISODate()}.pdf`);
   await FileSystem.moveAsync({ from: uri, to: target });
   if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device.');
   await Sharing.shareAsync(target, {

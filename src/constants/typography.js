@@ -1,5 +1,5 @@
 /**
- * TalkingLabs Typography System
+ * Decode My Labs Typography System
  *
  * One bundled font, Noto Sans, on iOS and Android so the app looks the same
  * everywhere. It covers English, French and Akan (ɛ, ɔ) plus lab symbols

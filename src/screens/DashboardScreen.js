@@ -78,7 +78,7 @@ export default function DashboardScreen({ navigation }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <View>
-            <Text style={styles.headerTitle}>Talking<Text style={{ color: Colors.teal }}>Labs</Text></Text>
+            <Text style={styles.headerTitle}>Decode My <Text style={{ color: Colors.teal }}>Labs</Text></Text>
             <Text style={styles.headerSub}>Your lab results, in words you understand</Text>
           </View>
         </View>

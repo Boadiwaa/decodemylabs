@@ -12,17 +12,18 @@ import * as FileSystem from 'expo-file-system/legacy';
 export const SHARE_DIR = () => `${FileSystem.documentDirectory}shared/`;
 
 /**
- * Make sure the folder exists, delete earlier files starting with `prefix`,
- * and return the path for the new file.
+ * Make sure the folder exists, delete earlier files starting with `prefix` (a
+ * string or a list), and return the path for the new file.
  */
 export async function prepareShareFile(prefix, fileName) {
+  const prefixes = [].concat(prefix);
   const dir = SHARE_DIR();
   const info = await FileSystem.getInfoAsync(dir);
   if (!info.exists) await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   try {
     const names = await FileSystem.readDirectoryAsync(dir);
     await Promise.all(names
-      .filter((name) => name.startsWith(prefix))
+      .filter((name) => prefixes.some((p) => name.startsWith(p)))
       .map((name) => FileSystem.deleteAsync(`${dir}${name}`, { idempotent: true })));
   } catch (e) {
     console.warn('[shareFiles] Could not clear earlier files:', e.message);

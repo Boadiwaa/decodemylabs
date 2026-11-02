@@ -1,8 +1,8 @@
-# TalkingLabs
+# Decode My Labs
 
 > **Lab results you can actually understand — in your language, on your phone, with on-device AI.**
 
-TalkingLabs is a mobile health app that transforms lab reports into plain-language explanations with voice playback. Patients photograph or upload a saved copy of their lab report, and the app uses Google's Gemma 4 model, running on the phone, to extract values, flag abnormal results, and explain what they mean in English, French, or Akan.
+Decode My Labs is a mobile health app that transforms lab reports into plain-language explanations with voice playback. Patients photograph or upload a saved copy of their lab report, and the app uses Google's Gemma 4 model, running on the phone, to extract values, flag abnormal results, and explain what they mean in English, French, or Akan.
 
 ---
 
@@ -16,7 +16,7 @@ In low- and middle-income countries (LMICs), the typical lab result journey look
 4. The clinician glances at it, gives verbal feedback, and the paper is lost by the next visit.
 5. No longitudinal tracking. No patient ownership. No understanding.
 
-TalkingLabs addresses each of these gaps.
+Decode My Labs addresses each of these gaps.
 
 ---
 

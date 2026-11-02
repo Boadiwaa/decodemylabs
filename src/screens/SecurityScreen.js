@@ -424,7 +424,7 @@ export default function SecurityScreen({ navigation }) {
         {/* About card */}
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.aboutCard}>
           <Image source={require('../../assets/icon.png')} style={styles.aboutLogo} />
-          <Text style={styles.aboutName}>TalkingLabs</Text>
+          <Text style={styles.aboutName}>Decode My Labs</Text>
           <Text style={styles.aboutVersion}>Version {APP_VERSION}</Text>
           <Text style={styles.aboutDisclaimer}>
             This app provides educational health information only.{'\n'}

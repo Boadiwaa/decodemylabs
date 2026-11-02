@@ -61,7 +61,7 @@ export default function LandingScreen({ navigation }) {
           <Animated.View entering={FadeIn.delay(100)} style={styles.topBar}>
             <Image source={require('../../assets/icon.png')} style={styles.logoIcon} />
             <Text style={styles.logoText}>
-              Talking<Text style={styles.logoAccent}>Labs</Text>
+              Decode My <Text style={styles.logoAccent}>Labs</Text>
             </Text>
           </Animated.View>
 
@@ -72,7 +72,7 @@ export default function LandingScreen({ navigation }) {
               <Text style={styles.heroTitleAccent}>simply.</Text>
             </Text>
             <Text style={styles.heroSubtitle}>
-              TalkingLabs employs the best parts of AI to provide on-the-go
+              Decode My Labs employs the best parts of AI to provide on-the-go
               lab interpretation that's accurate and actionable.{'\n'}
               Understand and track your labs easily without compromising on the privacy of your health data.
             </Text>
@@ -163,7 +163,7 @@ export default function LandingScreen({ navigation }) {
           <View style={styles.footerBrand}>
             <Image source={require('../../assets/icon.png')} style={styles.footerIcon} />
             <Text style={styles.footerLogo}>
-              Talking<Text style={styles.footerLogoAccent}>Labs</Text>
+              Decode My <Text style={styles.footerLogoAccent}>Labs</Text>
             </Text>
           </View>
           <Text style={styles.footerText}>

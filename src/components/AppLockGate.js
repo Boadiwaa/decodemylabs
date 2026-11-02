@@ -68,7 +68,7 @@ export default function AppLockGate({ userId, children }) {
   const unlock = useCallback(async () => {
     if (prompting.current) return;
     prompting.current = true;
-    const result = await authenticate('Unlock TalkingLabs');
+    const result = await authenticate('Unlock Decode My Labs');
     prompting.current = false;
     // The system prompt can move the app to the background; don't count that as leaving.
     backgroundedAt.current = null;
@@ -103,7 +103,7 @@ export default function AppLockGate({ userId, children }) {
           {!checking && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.content}>
               <Image source={require('../../assets/icon.png')} style={styles.logo} />
-              <Text style={styles.title}>TalkingLabs is locked</Text>
+              <Text style={styles.title}>Decode My Labs is locked</Text>
               <Text style={styles.subtitle}>
                 Use your fingerprint, face, or phone PIN to see your health information.
               </Text>
@@ -123,7 +123,7 @@ export default function AppLockGate({ userId, children }) {
                   unlock();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Unlock TalkingLabs"
+                accessibilityLabel="Unlock Decode My Labs"
               >
                 <Ionicons name="finger-print" size={20} color="#fff" />
                 <Text style={styles.unlockText}>Unlock</Text>

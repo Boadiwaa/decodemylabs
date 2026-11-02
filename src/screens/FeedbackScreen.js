@@ -78,7 +78,7 @@ export default function FeedbackScreen({ navigation, route }) {
             {sentVia === 'email'
               ? 'Your email app has opened with your feedback. Tap send there to finish.'
               : 'Your feedback is ready to send from the app you chose.'}
-            {' '}It helps make TalkingLabs clearer for everyone.
+            {' '}It helps make Decode My Labs clearer for everyone.
           </Text>
           <TouchableOpacity style={styles.sendBtn} onPress={goBack} accessibilityRole="button" accessibilityLabel="Done">
             <Text style={styles.sendText}>Done</Text>
@@ -93,7 +93,7 @@ export default function FeedbackScreen({ navigation, route }) {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(70).springify()} style={styles.section}>
-              <Text style={styles.label}>How is TalkingLabs working for you?</Text>
+              <Text style={styles.label}>How is Decode My Labs working for you?</Text>
               <View style={styles.stars}>
                 {[1, 2, 3, 4, 5].map((n) => (
                   <TouchableOpacity

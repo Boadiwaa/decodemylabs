@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.description    = 'Expo module for text recognition on iOS (Vision) and Android (ML Kit)'
   s.homepage       = 'https://github.com/example/expo-ocr'
   s.license        = 'MIT'
-  s.author         = 'TalkingLabs'
+  s.author         = 'Decode My Labs'
   s.platforms      = { :ios => '15.1' }
   s.source         = { :git => '' }
   s.source_files   = 'ios/**/*.{h,m,mm,swift}'

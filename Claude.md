@@ -1,7 +1,7 @@
 # CLAUDE.md - Project Context for AI Assistants
 
 ## What Is This App?
-TalkingLabs is a patient-facing mobile app built with Expo and React Native that helps people understand lab reports in plain language. Users can upload photos of their reports, review extracted values, see a clear summary, and open metric-level explanations with trend context and text-to-speech support.
+Decode My Labs is a patient-facing mobile app built with Expo and React Native that helps people understand lab reports in plain language. Users can upload photos of their reports, review extracted values, see a clear summary, and open metric-level explanations with trend context and text-to-speech support.
 
 ## Current Product Scope
 - Patient mode only. There is no active clinician mode.

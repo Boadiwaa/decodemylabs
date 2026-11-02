@@ -34,7 +34,7 @@ export function buildFeedbackMessage({ rating, topic, comment, ratings, aiBacken
     (comment || '').trim() || '(no comment)',
     '',
     '---',
-    `TalkingLabs ${APP_VERSION} · ${device.os} ${device.osVersion} · ${device.model}`
+    `Decode My Labs ${APP_VERSION} · ${device.os} ${device.osVersion} · ${device.model}`
       + (aiBackend ? ` · Gemma on ${aiBackend.toUpperCase()}` : ''),
   ];
   if (ratings) {
@@ -44,7 +44,7 @@ export function buildFeedbackMessage({ rating, topic, comment, ratings, aiBacken
         + `standard ${standard.helpful} of ${standard.helpful + standard.notHelpful}`,
     );
   }
-  return { subject: `TalkingLabs feedback: ${topicLabel}`, body: lines.join('\n') };
+  return { subject: `Decode My Labs feedback: ${topicLabel}`, body: lines.join('\n') };
 }
 
 function currentDevice() {

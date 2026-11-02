@@ -40,7 +40,7 @@ export default function RoleSelectScreen({ navigation }) {
 
         {/* Header */}
         <Animated.View entering={FadeInDown.delay(150).springify().damping(18)}>
-          <Text style={styles.title}>Welcome to <Text style={{ color: Colors.teal }}>TalkingLabs</Text></Text>
+          <Text style={styles.title}>Welcome to <Text style={{ color: Colors.teal }}>Decode My Labs</Text></Text>
           <Text style={styles.subtitle}>
             Your personal lab results companion. View your results, hear explanations, and track your health over time.
           </Text>

@@ -43,10 +43,10 @@ describe('buildFeedbackMessage', () => {
       comment: '  The liver section used words I did not know.  ',
       ratings: { gemma: { helpful: 2, notHelpful: 1 }, standard: { helpful: 0, notHelpful: 0 } },
     }, device);
-    expect(subject).toBe('TalkingLabs feedback: An explanation was unclear');
+    expect(subject).toBe('Decode My Labs feedback: An explanation was unclear');
     expect(body).toContain('Rating: 4 out of 5');
     expect(body).toContain('The liver section used words I did not know.');
-    expect(body).toContain(`TalkingLabs ${APP_VERSION} · Android 36 · Pixel 9a`);
+    expect(body).toContain(`Decode My Labs ${APP_VERSION} · Android 36 · Pixel 9a`);
     expect(body).toContain('Gemma 2 of 3, standard 0 of 0');
   });
 
@@ -57,7 +57,7 @@ describe('buildFeedbackMessage', () => {
 
   it('handles a message with nothing chosen', () => {
     const { subject, body } = buildFeedbackMessage({}, device);
-    expect(subject).toBe('TalkingLabs feedback: General');
+    expect(subject).toBe('Decode My Labs feedback: General');
     expect(body).toContain('Rating: not given');
     expect(body).toContain('(no comment)');
     expect(body).not.toContain('Explanations rated');

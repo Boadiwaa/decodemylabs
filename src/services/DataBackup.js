@@ -19,18 +19,20 @@ export const BACKUP_FORMAT = 'talkinglabs-backup';
 export const BACKUP_VERSION = 1;
 
 const REPORTS_DIR = () => `${FileSystem.documentDirectory}lab_reports/`;
-const BACKUP_PREFIX = 'TalkingLabs-backup-';
+const BACKUP_PREFIX = 'DecodeMyLabs-backup-';
+// Backups saved before the app was renamed; removed with the next one.
+const OLD_BACKUP_PREFIX = 'TalkingLabs-backup-';
 
 /**
- * Check that parsed JSON is a TalkingLabs backup this version can restore.
+ * Check that parsed JSON is a Decode My Labs backup this version can restore.
  * @returns {{ ok: true } | { ok: false, reason: string }}
  */
 export function validateBackup(backup) {
   if (!backup || typeof backup !== 'object' || backup.format !== BACKUP_FORMAT) {
-    return { ok: false, reason: "This file isn't a TalkingLabs backup." };
+    return { ok: false, reason: "This file isn't a Decode My Labs backup." };
   }
   if (typeof backup.version !== 'number' || backup.version > BACKUP_VERSION) {
-    return { ok: false, reason: 'This backup was made by a newer version of TalkingLabs. Please update the app first.' };
+    return { ok: false, reason: 'This backup was made by a newer version of Decode My Labs. Please update the app first.' };
   }
   if (!backup.data || typeof backup.data !== 'object') {
     return { ok: false, reason: 'This backup is missing its data.' };
@@ -81,7 +83,7 @@ export async function exportBackup(userId) {
   };
 
   // Kept until the next export: the receiving app may read it after the share sheet closes.
-  const fileUri = await prepareShareFile(BACKUP_PREFIX, `${BACKUP_PREFIX}${toISODate()}.json`);
+  const fileUri = await prepareShareFile([BACKUP_PREFIX, OLD_BACKUP_PREFIX], `${BACKUP_PREFIX}${toISODate()}.json`);
   await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(backup));
 
   if (!(await Sharing.isAvailableAsync())) {
@@ -89,7 +91,7 @@ export async function exportBackup(userId) {
   }
   await Sharing.shareAsync(fileUri, {
     mimeType: 'application/json',
-    dialogTitle: 'Save your TalkingLabs backup',
+    dialogTitle: 'Save your Decode My Labs backup',
     UTI: 'public.json',
   });
 
@@ -113,7 +115,7 @@ export async function pickBackup() {
   try {
     backup = JSON.parse(await FileSystem.readAsStringAsync(uri));
   } catch (e) {
-    return { ok: false, reason: "This file couldn't be read as a TalkingLabs backup." };
+    return { ok: false, reason: "This file couldn't be read as a Decode My Labs backup." };
   } finally {
     await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
   }

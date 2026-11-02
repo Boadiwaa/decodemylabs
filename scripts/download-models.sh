@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# TalkingLabs — Model Download Script
+# Decode My Labs — Model Download Script
 # =============================================================================
 # Downloads local model assets needed to run on-device inference.
 # Run this once after cloning the repo, before building the app.
@@ -97,7 +97,7 @@ download_if_url_set() {
 # ---------------------------------------------------------------------------
 
 echo "==================================================================="
-echo "  TalkingLabs — Downloading local model assets"
+echo "  Decode My Labs — Downloading local model assets"
 echo "==================================================================="
 
 download_if_url_set "$LITERT_MODEL_URL" "$MODELS_DIR/$LITERT_MODEL_FILE" "Gemma-4 LiteRT-LM model"

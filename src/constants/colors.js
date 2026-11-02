@@ -1,5 +1,5 @@
 /**
- * TalkingLabs Color Palette
+ * Decode My Labs Color Palette
  * A single teal ramp: #F3FBFB → #CDEEEE → #6FD0CC → #1A9E9B → #0C4E4C,
  * plus one in-between teal (#15807D) so buttons and small teal text meet
  * WCAG AA contrast. Text/background pairs below are AA (4.5:1) unless noted.

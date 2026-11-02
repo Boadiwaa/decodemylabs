@@ -1,5 +1,5 @@
 /**
- * Agent interface definitions — shared contract for all TalkingLabs agents.
+ * Agent interface definitions — shared contract for all Decode My Labs agents.
  *
  * Every agent in src/agents/ MUST:
  *   1. Export a default object with { name: string, run: function }

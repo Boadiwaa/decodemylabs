@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TalkingLabs",
+    "name": "Decode My Labs",
     "slug": "talkinglabs",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -74,7 +74,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "TalkingLabs uses Face ID to keep your health information private."
+          "faceIDPermission": "Decode My Labs uses Face ID to keep your health information private."
         }
       ]
     ]

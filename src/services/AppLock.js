@@ -20,7 +20,7 @@ try {
  */
 export async function getLockAvailability() {
   if (!LocalAuthentication) {
-    return { available: false, message: "App lock needs the latest version of the app. Please update TalkingLabs." };
+    return { available: false, message: "App lock needs the latest version of the app. Please update Decode My Labs." };
   }
   try {
     const level = await LocalAuthentication.getEnrolledLevelAsync();
