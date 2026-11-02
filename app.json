@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TalkingLabs",
+    "name": "Decode My Labs",
     "slug": "talkinglabs",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,13 +21,39 @@
     "android": {
       "package": "com.talkinglabs.app",
       "largeHeap": true,
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F4FAFA"
+        "backgroundColor": "#1A9E9B"
       }
     },
     "plugins": [
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "ios": {
+            "fonts": [
+              "./assets/fonts/NotoSans-Regular.ttf",
+              "./assets/fonts/NotoSans-Medium.ttf",
+              "./assets/fonts/NotoSans-SemiBold.ttf",
+              "./assets/fonts/NotoSans-Bold.ttf"
+            ]
+          },
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Noto Sans",
+                "fontDefinitions": [
+                  { "path": "./assets/fonts/NotoSans-Regular.ttf", "weight": 400 },
+                  { "path": "./assets/fonts/NotoSans-Medium.ttf", "weight": 500 },
+                  { "path": "./assets/fonts/NotoSans-SemiBold.ttf", "weight": 600 },
+                  { "path": "./assets/fonts/NotoSans-Bold.ttf", "weight": 700 }
+                ]
+              }
+            ]
+          }
+        }
+      ],
       [
         "llama.rn",
         {
@@ -39,12 +65,18 @@
       [
         "./plugins/withModelAsset",
         {
-          "modelPath": "models/medgemma-1.5-4b-it-Q3_K_M.gguf",
-          "mmprojPath": "models/mmproj-F16.gguf"
+          "modelPath": "models/gemma-4-E2B-it-Q4_0.gguf",
+          "mmprojPath": "models/mmproj-gemma-4-E2B-it-Q8_0.gguf"
         }
       ],
       "./plugins/withAppConfig",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Decode My Labs uses Face ID to keep your health information private."
+        }
+      ]
     ]
   }
 }

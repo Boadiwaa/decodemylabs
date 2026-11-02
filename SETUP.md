@@ -1,6 +1,6 @@
-# TalkingLabs — Setup Guide
+# Decode My Labs — Setup Guide
 
-This guide walks you through everything needed to build and run TalkingLabs on a physical device. An emulator/simulator is not recommended because `llama.rn` requires a real CPU (or Metal GPU on iOS) to load the model.
+This guide walks you through everything needed to build and run Decode My Labs. A physical device is recommended. On Android, the LiteRT runtime also runs on an **arm64** emulator started with enough memory (`emulator -avd <name> -memory 8192`) and `EXPO_PUBLIC_ALLOW_EMULATOR_MODEL_LOAD=true`. The iOS Simulator cannot run `llama.rn`.
 
 ---
 
@@ -14,14 +14,14 @@ This guide walks you through everything needed to build and run TalkingLabs on a
 | Android Studio | ≥ Hedgehog | Required for Android |
 | CocoaPods | ≥ 1.14 | `sudo gem install cocoapods` |
 | Expo CLI | Latest | `npm install -g expo-cli` (optional) |
-| Physical device | iOS 16+ or Android 10+ | llama.rn does not run on simulators |
+| Device | iOS 16+ or Android 10+ (arm64) | llama.rn does not run on simulators |
 
 ---
 
 ## 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/talkinglabs.git
+git clone https://github.com/Boadiwaa/talkinglabs.git
 cd talkinglabs
 ```
 
@@ -43,39 +43,30 @@ cd ios && pod install && cd ..
 
 ---
 
-## 3. Download the MedGemma Model Weights
+## 3. Download the Model Weights
 
-The model files (~2–3 GB total) are **not included in the repository** (they are gitignored). You must download them separately.
+The model files are **not included in the repository** (they are gitignored). Both runtimes use Google's Gemma 4 E2B model, packaged differently for each (see [README → Model Runtimes](README.md#model-runtimes)):
 
-### Step 3a — Get a Hugging Face access token
+| Runtime | File | Size | Source |
+|---------|------|------|--------|
+| Android `litertlm` (default) | `models/gemma-4-E2B-it.litertlm` | 2.59 GB | [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) |
+| `llama` (iOS, or Android fallback) | `models/gemma-4-E2B-it-Q4_0.gguf` | 2.84 GB | [ggml-org/gemma-4-E2B-it-GGUF](https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF) |
+| `llama` vision projector | `models/mmproj-gemma-4-E2B-it-Q8_0.gguf` | 0.56 GB | same repo; needed for photo parsing |
 
-1. Create an account at [huggingface.co](https://huggingface.co)
-2. Navigate to [google/medgemma-4b-it-gguf](https://huggingface.co/google/medgemma-4b-it-gguf) and request access
-3. Once approved, generate a User Access Token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) (read access is sufficient)
+Sizes are in decimal GB (10⁹ bytes), as Hugging Face and Finder report them. Both repositories are public, so no Hugging Face token is needed.
 
-### Step 3b — Run the download script
+### Run the download script
 
 ```bash
-export HF_TOKEN=hf_your_token_here
 chmod +x scripts/download-models.sh
 ./scripts/download-models.sh
 ```
 
-This downloads two files into `models/`:
-
-| File | Size | Purpose |
-|------|------|---------|
-| `medgemma-1.5-4b-it-Q3_K_M.gguf` | ~1.1 GB | Text inference model (lab extraction + interpretation) |
-| `mmproj-F16.gguf` | ~550 MB | Multimodal projection weights (direct image analysis) |
+This downloads all three files (~6 GB) into `models/`. To skip the LiteRT file (e.g. iOS only), run `LITERT_MODEL_URL="" ./scripts/download-models.sh`. If `HF_TOKEN` is set, the script sends it with each request.
 
 ### Alternative: Manual download
 
-If the script fails, you can download the files manually from the Hugging Face model page and place them at:
-
-```
-models/medgemma-1.5-4b-it-Q3_K_M.gguf
-models/mmproj-F16.gguf
-```
+If the script fails, download the files from the repositories above and place them at the paths in the table.
 
 ---
 
@@ -85,8 +76,8 @@ models/mmproj-F16.gguf
 
 1. Connect your iPhone/iPad via USB and trust the computer.
 2. Open Xcode, sign the app with your Apple Developer account:
-   - Open `ios/TalkingLabs.xcworkspace`
-   - Select the `TalkingLabs` target → Signing & Capabilities
+   - Open `ios/DecodeMyLabs.xcworkspace`
+   - Select the `DecodeMyLabs` target → Signing & Capabilities
    - Set your Team to your Apple ID (free account is fine for testing)
 3. Close Xcode.
 4. Build and run:
@@ -107,9 +98,15 @@ Or use the Xcode Build button directly after the above command generates the pro
 npm run android:push-model
 ```
 
-This uses `adb push` to copy the model files to the device's storage. The app will auto-migrate them to its private documents directory on first launch.
+This uses `adb push` to copy whichever model files exist in `models/` to `/data/local/tmp`. The app copies them to its private documents directory on first launch, so the device briefly needs free space for two copies (~5.2 GB for the LiteRT file).
 
-4. Build and run:
+4. Create `.env.local` in the project root (see [README → Configuration](README.md#configuration)), for example:
+
+```
+EXPO_PUBLIC_LOCAL_INFERENCE_RUNTIME=litertlm
+```
+
+5. Build and run:
 
 ```bash
 npx expo run:android
@@ -152,7 +149,7 @@ The Dashboard pre-loads 5 example patients from `src/data/mockData.js`. You can 
 
 ## 7. EAS Build (for distributing to others)
 
-To share a build with judges or testers without asking them to clone and build the repo:
+To share a build with testers without asking them to clone and build the repo:
 
 ### Setup EAS
 
@@ -199,7 +196,7 @@ eas build --platform ios --profile preview
 eas build --platform android --profile preview
 ```
 
-> **Important:** The model weights (~2–3 GB) are NOT included in the EAS build. The built app will download the model on first launch if `MODEL_DOWNLOAD_URL` is set in `src/services/LlamaService.js`. Without this, testers must use the mock data demo mode.
+> **Important:** The model weights are NOT included in the EAS build. For the `llama` runtime, the app downloads the Gemma 4 GGUF files on first launch if `MODEL_DOWNLOAD_URL` and `MMPROJ_DOWNLOAD_URL` are set in `src/services/LlamaService.js`. There is no equivalent download for the Gemma 4 LiteRT file yet. Without a model, testers get rule-based parsing and the mock data demo mode.
 
 ### Share the build
 
@@ -218,11 +215,20 @@ After the build completes on EAS servers:
 | `npx expo run:android` | Build and run on connected Android device |
 | `npm run android:push-model` | Push model files to Android device via adb |
 | `npm run android:check-model` | Verify model files are on the Android device |
-| `./scripts/download-models.sh` | Download MedGemma model weights from Hugging Face |
+| `./scripts/download-models.sh` | Download Gemma 4 model weights for both runtimes |
+| `npm test` | Run Jest unit tests |
 
 ---
 
 ## 9. Troubleshooting
+
+### "LiteRT model loading crashed the app last time"
+
+The app writes a marker before loading the LiteRT model and clears it after the load returns. If a native crash kills the app mid-load, the next launch skips LiteRT and runs in rule-based mode instead of crashing again. LiteRT is retried automatically when the model file changes or `LITERT_RUNTIME_VERSION` in `src/services/LiteRTService.js` is bumped. To retry manually, clear app storage or call `liteRTService.clearCrashMarker()`.
+
+### LiteRT aborts while loading a Gemma 4 model
+
+Gemma 4 `.litertlm` files need `litertlm-android` 0.10.1 or newer (`modules/expo-litertlm/android/build.gradle`). Version 0.8.0 aborts natively while reading them.
 
 ### "Model not found" on iOS
 
@@ -254,6 +260,8 @@ cd ios && pod repo update && pod install && cd ..
 
 ## 10. Environment Notes
 
-- The app does **not** require any `.env` file or API keys to run.
-- The `HF_TOKEN` is only needed to download the model weights (step 3). It is not used at runtime.
-- No backend server is required — all inference is on-device.
+- Runtime settings come from `.env.local` (gitignored). Without it, the app uses `auto` runtime selection. Restart Metro after editing it.
+- `HF_TOKEN` (shell variable) is optional and only used by the download script.
+- `EXPO_PUBLIC_HF_API_TOKEN` is used at runtime by Akan voice playback, which calls Hugging Face-hosted models and needs internet. English and French playback use on-device `expo-speech`.
+- No backend server is needed. All model inference runs on the device.
+- `EXPO_PUBLIC_` values are compiled into the app bundle. Do not put production secrets in them.

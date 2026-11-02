@@ -17,26 +17,28 @@ import MedicalHistoryScreen from './src/screens/MedicalHistoryScreen';
 import DrugHistoryScreen from './src/screens/DrugHistoryScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import Toast from './src/components/Toast';
+import AppLockGate from './src/components/AppLockGate';
+import Colors from './src/constants/colors';
 
 const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
-  const { isAuthenticated, isLoading, needsOnboarding } = useAuth();
+  const { user, isAuthenticated, isLoading, needsOnboarding } = useAuth();
 
   if (isLoading) {
     return (
       <View style={loadingStyles.container}>
-        <ActivityIndicator size="large" color="#2BB5A8" />
+        <ActivityIndicator size="large" color={Colors.teal} />
       </View>
     );
   }
 
-  return (
+  const navigation = (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#F4FAFA' },
+          contentStyle: { backgroundColor: Colors.bgPrimary },
           animation: 'slide_from_right',
         }}
       >
@@ -94,6 +96,12 @@ function AppNavigator() {
       </Stack.Navigator>
     </NavigationContainer>
   );
+
+  // Signed-in patients may have App lock on; the gate covers the app until they unlock.
+  if (isAuthenticated && !needsOnboarding && user?.id) {
+    return <AppLockGate key={user.id} userId={user.id}>{navigation}</AppLockGate>;
+  }
+  return navigation;
 }
 
 export default function App() {
@@ -119,6 +127,6 @@ const loadingStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F4FAFA',
+    backgroundColor: Colors.bgPrimary,
   },
 });
