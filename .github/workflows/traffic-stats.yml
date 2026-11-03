@@ -1,0 +1,65 @@
+name: Save traffic stats
+
+# GitHub keeps views and clones for 14 days only. This saves them every day to
+# the `traffic-stats` branch, together with who has forked or starred the repo.
+# Setup: add a repository secret named TRAFFIC_TOKEN (see scripts/traffic_stats.py).
+
+on:
+  schedule:
+    - cron: "37 5 * * *" # every day at 05:37 UTC
+  workflow_dispatch: # also lets you run it from the Actions tab
+
+permissions:
+  contents: write # to push the CSV files to the traffic-stats branch
+
+concurrency:
+  group: traffic-stats
+  cancel-in-progress: false
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Open the traffic-stats branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin traffic-stats > /dev/null; then
+            git fetch --depth 1 origin +refs/heads/traffic-stats:refs/remotes/origin/traffic-stats
+            git worktree add -B traffic-stats data origin/traffic-stats
+          else
+            # First run: start an empty branch that shares no files with the app.
+            git worktree add --detach data
+            cd data
+            git checkout --orphan traffic-stats
+            git rm -rf --quiet .
+          fi
+
+      - name: Collect stats
+        id: collect
+        env:
+          TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          python3 scripts/traffic_stats.py --repo "$GITHUB_REPOSITORY" --out data
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Save to the branch
+        working-directory: data
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing new to save."
+          else
+            git commit --quiet -m "Traffic stats $(date -u +%F)"
+            git push origin traffic-stats
+          fi
+
+      - name: Report a missing or broken token
+        if: steps.collect.outputs.status != '0'
+        run: |
+          echo "::error::Some stats were not saved. The Collect stats step says which, and usually it's the TRAFFIC_TOKEN secret."
+          exit 1
